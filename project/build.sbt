@@ -8,4 +8,4 @@ externalResolvers <<= resolvers map { rs =>
   Resolver.withDefaultResolvers(rs, mavenCentral = false)
 }
 
-ivyLoggingLevel := UpdateLogging.DownloadOnly
+addSbtPlugin("com.socrata" % "socrata-sbt" % "0.2.3")

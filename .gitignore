@@ -9,5 +9,4 @@
 .DS_Store
 *.swp
 *.swo
-/migrations/database.yml
 /project/project/target/
