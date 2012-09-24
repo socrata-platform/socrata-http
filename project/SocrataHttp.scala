@@ -20,12 +20,15 @@ object SocrataHttp extends Build {
     testOptions in Test ++= Seq(
       Tests.Argument("-oFD")
     ),
-    libraryDependencies ++= Seq(
-      "org.eclipse.jetty" % "jetty-jmx" % versions.jetty,
-      "org.eclipse.jetty" % "jetty-server" % versions.jetty,
-      "org.eclipse.jetty" % "jetty-servlet" % versions.jetty,
-      "com.socrata" %% "socrata-utils" % versions.socrataUtils
-    )
+    libraryDependencies <++= (slf4jVersion) { slf4jVersion =>
+      Seq(
+        "org.eclipse.jetty" % "jetty-jmx" % versions.jetty,
+        "org.eclipse.jetty" % "jetty-server" % versions.jetty,
+        "org.eclipse.jetty" % "jetty-servlet" % versions.jetty,
+        "com.socrata" %% "socrata-utils" % versions.socrataUtils,
+        "org.slf4j" % "slf4j-simple" % slf4jVersion % "test"
+      )
+    }
   )
 
   object versions {
