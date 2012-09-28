@@ -22,6 +22,7 @@ object SocrataHttp extends Build {
     ),
     libraryDependencies <++= (slf4jVersion) { slf4jVersion =>
       Seq(
+         "commons-lang" % "commons-lang" % versions.commonsLang,
         "org.eclipse.jetty" % "jetty-jmx" % versions.jetty,
         "org.eclipse.jetty" % "jetty-server" % versions.jetty,
         "org.eclipse.jetty" % "jetty-servlet" % versions.jetty,
@@ -32,6 +33,7 @@ object SocrataHttp extends Build {
   )
 
   object versions {
+    val commonsLang = "2.4"
     val jetty = "7.5.1.v20110908"
     val socrataUtils = "0.0.1"
   }
