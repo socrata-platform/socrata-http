@@ -35,6 +35,6 @@ object SocrataHttp extends Build {
   object versions {
     val commonsLang = "2.4"
     val jetty = "7.5.1.v20110908"
-    val socrataUtils = "0.0.1"
+    val socrataUtils = "0.5.0"
   }
 }
