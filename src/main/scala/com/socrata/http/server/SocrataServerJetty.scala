@@ -82,9 +82,6 @@ class SocrataServerJetty(
     val SIGTERM = new Signal("TERM")
     val SIGINT = new Signal("INT")
 
-    // Ick -- but we won't have a cookie until AFTER the server has
-    // started, and we won't have started until after hooking the
-    // signals.
     val signalled = new Semaphore(0)
 
     val signalHandler = new SignalHandler {
