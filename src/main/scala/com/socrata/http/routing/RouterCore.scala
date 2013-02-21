@@ -16,3 +16,19 @@ class RouterSet[+FoundRoute](routers: Seq[Router[FoundRoute]]) extends Router[Fo
     routers.iterator.map(_(method, requestParts)).find(_.isDefined).map(_.get)
   }
 }
+
+object RouterSet {
+  def apply[FoundRoute](routers: Router[FoundRoute]*) = new RouterSet(routers)
+}
+
+class SubRouter[+FoundRoute](prefix: Seq[String], subRouter: Router[FoundRoute]) extends Router[FoundRoute] {
+  private val pfxLen = prefix.length
+  def apply(method: String, requestParts: Seq[String]): Option[FoundRoute] = {
+    if(requestParts.startsWith(prefix)) subRouter(method, requestParts.drop(pfxLen))
+    else None
+  }
+}
+
+object SubRouter {
+  def apply[FoundRoute](prefix: String*)(subrouter: Router[FoundRoute]) = new SubRouter(prefix, subrouter)
+}
