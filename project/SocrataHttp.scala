@@ -3,6 +3,7 @@ import Keys._
 
 import com.socrata.socratasbt.SocrataSbt._
 import SocrataSbtKeys._
+import SocrataUtil._
 
 import com.socrata.socratasbt.CheckClasspath
 
@@ -21,15 +22,18 @@ object SocrataHttp extends Build {
     testOptions in Test ++= Seq(
       Tests.Argument("-oFD")
     ),
-    libraryDependencies <++= (slf4jVersion) { slf4jVersion =>
+    libraryDependencies <++= (scalaVersion, slf4jVersion) { (scalaVersion, slf4jVersion) =>
       Seq(
-         "commons-lang" % "commons-lang" % versions.commonsLang,
+        "commons-lang" % "commons-lang" % versions.commonsLang,
         "org.eclipse.jetty" % "jetty-jmx" % versions.jetty,
         "org.eclipse.jetty" % "jetty-server" % versions.jetty,
         "org.eclipse.jetty" % "jetty-servlet" % versions.jetty,
         "com.socrata" %% "socrata-utils" % versions.socrataUtils,
         "org.slf4j" % "slf4j-simple" % slf4jVersion % "test"
-      )
+      ) ++ (scalaVersion match {
+        case Is210() => Seq("org.scala-lang" % "scala-reflect" % scalaVersion)
+        case _ => Nil
+      })
     }
   )
 
