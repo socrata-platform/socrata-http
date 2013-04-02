@@ -7,7 +7,7 @@ name := "socrata-http"
 
 organization := "com.socrata"
 
-version := "1.1.1-SNAPSHOT"
+version := "1.1.1"
 
 previousArtifact <<= scalaBinaryVersion { sv => Some("com.socrata" % ("socrata-http_" + sv) % "1.1.0") }
 
