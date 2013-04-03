@@ -1,6 +1,6 @@
 package com.socrata.http.server
 
-import server_impl._
+import com.socrata.http.server.server_impl._
 
 object implicits {
   implicit def httpResponseToChainedResponse(resp: HttpResponse) = resp match {
