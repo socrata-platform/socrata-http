@@ -7,7 +7,7 @@ import com.typesafe.tools.mima.plugin.MimaKeys.previousArtifact
 object BuildSettings {
   val buildSettings: Seq[Setting[_]] = Defaults.defaultSettings ++ Seq(
     organization := "com.socrata",
-    version := "1.2.0-SNAPSHOT",
+    version := "1.2.0",
     scalaVersion := "2.10.0",
     crossScalaVersions := Seq("2.8.1", "2.9.2", "2.10.0")
   )
