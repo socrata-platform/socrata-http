@@ -7,13 +7,13 @@ import com.typesafe.tools.mima.plugin.MimaKeys.previousArtifact
 object BuildSettings {
   val buildSettings: Seq[Setting[_]] = Defaults.defaultSettings ++ Seq(
     organization := "com.socrata",
-    version := "1.2.0",
+    version := "1.2.1-SNAPSHOT",
     scalaVersion := "2.10.0",
     crossScalaVersions := Seq("2.8.1", "2.9.2", "2.10.0")
   )
 
   val projectSettings: Seq[Setting[_]] = buildSettings ++ mimaDefaultSettings ++ Seq(
-    previousArtifact <<= (scalaBinaryVersion, name) { (sv, name) => Some("com.socrata" % (name + "_" + sv) % "1.1.1") }, // n.b., this will false-positive due to the jar split
+    previousArtifact <<= (scalaBinaryVersion, name) { (sv, name) => Some("com.socrata" % (name + "_" + sv) % "1.2.0") },
     testOptions in Test ++= Seq(
       Tests.Argument(TestFrameworks.ScalaTest, "-oFD")
     ),
