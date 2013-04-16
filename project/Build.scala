@@ -23,6 +23,12 @@ object Build extends sbt.Build {
     settings = SocrataHttpJetty.settings
   ) dependsOn(socrataHttpUtils)
 
+  lazy val socrataHttpCuratorBroker = Project(
+    "socrata-http-curator-broker",
+    file("socrata-http-curator-broker"),
+    settings = SocrataHttpCuratorBroker.settings
+  ) dependsOn(socrataHttpJetty)
+
   lazy val socrataHttpUtils = Project(
     "socrata-http-utils",
     file("socrata-http-utils"),
