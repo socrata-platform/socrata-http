@@ -104,7 +104,14 @@ class SocrataServerJetty(
       oldSIGINT = Signal.handle(SIGINT, signalHandler)
 
       log.info("Starting server")
-      server.start()
+      try {
+        server.start()
+      } catch {
+        case e: Exception =>
+          server.stop()
+          server.join()
+          throw e
+      }
 
       try {
         log.info("Registering with broker")
