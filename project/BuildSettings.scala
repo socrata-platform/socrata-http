@@ -8,7 +8,7 @@ object BuildSettings {
   val buildSettings: Seq[Setting[_]] = Defaults.defaultSettings ++ Seq(
     organization := "com.socrata",
     version := "2.0.0-SNAPSHOT",
-    scalaVersion := "2.10.0"
+    scalaVersion := "2.10.2"
   )
 
   val projectSettings: Seq[Setting[_]] = buildSettings ++ mimaDefaultSettings ++ Seq(
@@ -17,7 +17,7 @@ object BuildSettings {
       Tests.Argument(TestFrameworks.ScalaTest, "-oFD")
     ),
     libraryDependencies ++= Seq(
-      "org.scalatest" %% "scalatest" % "1.9.1" % "test"
+      Dependencies.scalaTest % "test"
     ),
     scalacOptions ++= Seq("-encoding", "UTF-8", "-g:vars", "-deprecation", "-feature", "-language:implicitConversions"),
     javacOptions ++= Seq("-encoding", "UTF-8", "-g", "-Xlint:unchecked", "-Xlint:deprecation", "-Xmaxwarns", "999999"),
@@ -27,6 +27,4 @@ object BuildSettings {
         <conflict org="com.rojoma" manager="latest-compatible"/>
       </dependencies>
   )
-
-  val slf4jVersion = "1.7.5"
 }

@@ -3,10 +3,13 @@ import Keys._
 
 import Dependencies._
 
-object SocrataHttpCuratorBroker {
+object SocrataHttpCommon {
   val settings: Seq[Setting[_]] = BuildSettings.projectSettings ++ Seq(
     libraryDependencies ++= Seq(
-      curatorDiscovery
+      commonsLang,
+      slf4jApi,
+      simpleArm,
+      scalaCheck % "test"
     )
   )
 }
