@@ -3,10 +3,8 @@ package com.socrata.http.server.routing.two
 import scala.language.experimental.macros
 import com.socrata.http.server.`routing-impl`.two.RouteImpl
 
-class Route {
-  type Context
-
-  def path[U](pathSpec: String)(targetObject: Any) = macro RouteImpl.impl[U]
+object Route {
+  def apply[U](pathSpec: String)(targetObject: Any) = macro RouteImpl.impl[U]
 }
 
 trait Extracter[T] {

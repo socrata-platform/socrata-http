@@ -10,6 +10,9 @@ object RouteImpl {
   case class PathInstance(className: String) extends ComponentType
   case class PathLiteral(value: String) extends ComponentType
 
+  private val priorityProvider = new java.util.concurrent.atomic.AtomicLong(0L)
+  def nextPriority() = priorityProvider.getAndIncrement()
+
   class Parser extends RegexParsers {
     val classNameComponent = "[a-zA-Z0-9_]+".r
     val dot = "."
@@ -103,9 +106,9 @@ object RouteImpl {
 
     val terminus = newTermName(c.fresh("terminus"))
     val terminusTree = if(hasStar) {
-      q"val $terminus = _root_.com.socrata.http.server.routing.two.PathTree.flexRoot[_root_.scala.Predef.String, _root_.scala.collection.immutable.List[_root_.scala.Any]](nextPriority(), _ :: _root_.scala.collection.immutable.Nil)"
+      q"val $terminus = _root_.com.socrata.http.server.routing.two.PathTree.flexRoot[_root_.scala.Predef.String, _root_.scala.collection.immutable.List[_root_.scala.Any]](_root_.com.socrata.http.server.`routing-impl`.two.RouteImpl.nextPriority(), _ :: _root_.scala.collection.immutable.Nil)"
     } else {
-      q"val $terminus = _root_.com.socrata.http.server.routing.two.PathTree.fixRoot[_root_.scala.Predef.String][_root_.scala.collection.immutable.List[_root_.scala.Any]](nextPriority(), _root_.scala.collection.immutable.Nil)"
+      q"val $terminus = _root_.com.socrata.http.server.routing.two.PathTree.fixRoot[_root_.scala.Predef.String][_root_.scala.collection.immutable.List[_root_.scala.Any]](_root_.com.socrata.http.server.`routing-impl`.two.RouteImpl.nextPriority(), _root_.scala.collection.immutable.Nil)"
     }
 
     val (lastP, pRev) = pathElements.foldRight((terminus, List.empty[Tree])) { (pathElement, acc) =>

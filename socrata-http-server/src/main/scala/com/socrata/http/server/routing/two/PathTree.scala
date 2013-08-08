@@ -3,7 +3,7 @@ package com.socrata.http.server.routing.two
 import scala.collection.LinearSeq
 import scala.annotation.tailrec
 
-class PathTree[P, +R](val literal: Map[P, PathTree[P, R]], val functiony: Iterable[P => Option[PathTree[P, R]]], val terminal : Map[Int, LinearSeq[P] => Option[R]]) extends (LinearSeq[P] => Option[R]) {
+class PathTree[P, +R](val literal: Map[P, PathTree[P, R]], val functiony: Iterable[P => Option[PathTree[P, R]]], val terminal : Map[Long, LinearSeq[P] => Option[R]]) extends (LinearSeq[P] => Option[R]) {
   val isEmpty = literal.isEmpty && functiony.isEmpty && terminal.isEmpty
   def nonEmpty = !isEmpty
 
@@ -47,14 +47,14 @@ object PathTree {
     result.result()
   }
 
-  private def pickFrom[R](candidates: Map[Int, R]): Option[R] =
+  private def pickFrom[R](candidates: Map[Long, R]): Option[R] =
     if(candidates.isEmpty) None
     else Some(candidates.maxBy(_._1)._2)
 
-  def nextTerminal[P, R](path: LinearSeq[P], possibleTerms: Map[Int, LinearSeq[P] => Option[R]], ifNone: Map[Int, R]): Map[Int, R] = {
+  def nextTerminal[P, R](path: LinearSeq[P], possibleTerms: Map[Long, LinearSeq[P] => Option[R]], ifNone: Map[Long, R]): Map[Long, R] = {
     if(possibleTerms.isEmpty) ifNone
     else {
-      val builder = Map.newBuilder[Int, R]
+      val builder = Map.newBuilder[Long, R]
       possibleTerms.foreach { case (pri, acceptsRemainingTerm) =>
         acceptsRemainingTerm(path) match {
           case Some(r) => builder += pri -> r
@@ -68,7 +68,7 @@ object PathTree {
   }
 
   @tailrec
-  private def acceptLoop[P, R](self: PathTree[P, R], path: LinearSeq[P], previousWithWildcard: Map[Int, R]): Option[R] = path match {
+  private def acceptLoop[P, R](self: PathTree[P, R], path: LinearSeq[P], previousWithWildcard: Map[Long, R]): Option[R] = path match {
     case hd +: tl =>
       val term = nextTerminal(path, self.terminal, previousWithWildcard)
       if(self.nonEmpty) {
@@ -90,11 +90,11 @@ object PathTree {
 
   def fixRoot[P] = fixRootProvider.asInstanceOf[FRP[P]]
   class FRP[P] {
-    def apply [R](priority: Int, r: R): PathTree[P, R] =
+    def apply [R](priority: Long, r: R): PathTree[P, R] =
       new PathTree[P, R](Map.empty, Seq.empty, Map(priority -> { f => if(f.isEmpty) Some(r) else None }))
   }
   private val fixRootProvider = new FRP[Any]
 
-  def flexRoot[P, R](priority: Int, r: LinearSeq[P] => R): PathTree[P, R] =
+  def flexRoot[P, R](priority: Long, r: LinearSeq[P] => R): PathTree[P, R] =
     new PathTree[P, R](Map.empty, Seq.empty, Map(priority -> { xs => Some(r(xs)) }))
 }
