@@ -18,9 +18,3 @@ object Extracter {
     def extract(s: String): Option[String] = Some(s)
   }
 }
-
-object Extract {
-  def apply[T](p: PathTree[String, List[Any]])(implicit extracter: Extracter[T]): String => Option[PathTree[String, List[Any]]] = { s =>
-    extracter.extract(s).map { r => p.map(r :: _) }
-  }
-}

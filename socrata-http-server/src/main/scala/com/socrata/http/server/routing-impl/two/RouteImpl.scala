@@ -116,22 +116,19 @@ object RouteImpl {
           (q"_root_.scala.collection.immutable.Map($literal -> $lastP)", q"_root_.scala.collection.immutable.Nil")
         case PathInstance(className) =>
           val cls = typeFromName(className)
-          (q"_root_.scala.collection.immutable.Map.empty", q"_root_.scala.collection.immutable.List(_root_.com.socrata.http.server.routing.two.Extract[$cls]($lastP))")
+          (q"_root_.scala.collection.immutable.Map.empty", q"_root_.scala.collection.immutable.List(_root_.com.socrata.http.server.`routing-impl`.two.Extract[$cls]($lastP))")
       }
       val newTerm = q"val $pN = new _root_.com.socrata.http.server.routing.two.PathTree[_root_.scala.Predef.String, _root_.scala.collection.immutable.List[_root_.scala.Any]]($lit, $funcy, _root_.scala.collection.immutable.Map.empty)"
       (pN, newTerm :: termsSoFar)
     }
 
-    val result = q"""
-    {
+    val result = q"""{
       $fTree
       $pTree
       $terminusTree
       ..${pRev.reverse}
       $lastP.mapStrict($typeifyName)
-    }
-    """
-
+    }"""
 
     println(result)
 
