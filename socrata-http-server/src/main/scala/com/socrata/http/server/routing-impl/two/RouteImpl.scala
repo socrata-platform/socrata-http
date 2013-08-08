@@ -73,7 +73,6 @@ object RouteImpl {
     //
     // With luck, untyped macros will eventually let the type annotations on the action func and the
     // return go away.
-    println(pathElements)
 
     def typeFromName(s: String) = {
       val TypeDef(_, _, _, rhs) = c.parse("type T = " + s)
