@@ -1,9 +1,12 @@
 package com.socrata.http.server.`routing-impl`.two
 
-import com.socrata.http.server.routing.two.{Extracter, PathTree}
+import com.socrata.http.server.routing.two.{Extractor, PathTree}
+import scala.runtime.AbstractFunction1
 
 object Extract {
-  def apply[T](p: PathTree[String, List[Any]])(implicit extracter: Extracter[T]): String => Option[PathTree[String, List[Any]]] = { s =>
-    extracter.extract(s).map { r => p.map(r :: _) }
-  }
+  def apply[T : Extractor](p: PathTree[String, List[Any]]): String => Option[PathTree[String, List[Any]]] =
+    new AbstractFunction1[String, Option[PathTree[String, List[Any]]]] {
+      private[this] val extractor = Extractor[T]
+      def apply(s: String) = extractor.extract(s).map { r => p.map(r :: _) }
+    }
 }

@@ -10,7 +10,8 @@ object SocrataHttpServer {
         javaxServlet % "provided",
         scalaReflect(sv),
         simpleArm,
-        slf4jApi
+        slf4jApi,
+        scalaCheck % "test"
       )
     },
 

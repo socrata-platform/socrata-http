@@ -2,17 +2,13 @@ package com.socrata.http.server.routing.two
 
 import scala.language.experimental.macros
 import com.socrata.http.server.`routing-impl`.two.RouteImpl
+import com.socrata.http.server.HttpService
 
 object Route {
-  def apply[U](pathSpec: String)(targetObject: Any) = macro RouteImpl.impl[U]
+  def apply(pathSpec: String, targetObject: Any): PathTree[String, HttpService] = macro RouteImpl.impl
 }
 
-trait Extracter[T] {
-  def extract(s: String): Option[T]
-}
-
-object Extracter {
-  implicit object StringExtracter extends Extracter[String] {
-    def extract(s: String): Option[String] = Some(s)
-  }
+object Routes {
+  type R = PathTree[String, HttpService]
+  def apply(route: R, routes: R*) = routes.foldLeft(route)(_ merge _)
 }
