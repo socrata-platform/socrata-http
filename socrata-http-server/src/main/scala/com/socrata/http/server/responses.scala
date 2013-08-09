@@ -17,7 +17,10 @@ object responses {
 
   def Write(f: Writer => Unit) = r { resp => f(resp.getWriter) }
   def Stream(f: OutputStream => Unit) = r { resp => f(resp.getOutputStream) }
-  def Content(content: String) = Write { _.write(content) }
+  def Content(content: String) = {
+    require(content ne null)
+    Write { _.write(content) }
+  }
 
   // 2xx
   val OK = Status(HttpServletResponse.SC_OK)
