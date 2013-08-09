@@ -1,9 +1,9 @@
-package com.socrata.http.server.`routing-impl`.two
+package com.socrata.http.server.`routing-impl`
 
 import scala.language.experimental.macros
 import scala.reflect.macros.Context
 import scala.util.parsing.combinator.RegexParsers
-import com.socrata.http.server.routing.two.PathTree
+import com.socrata.http.server.routing.PathTree
 
 object PathTreeBuilderImpl {
   sealed abstract class ComponentType
@@ -22,7 +22,7 @@ object PathTreeBuilderImpl {
   }
 
   // "(/([^/]*)|{ClassName})+"
-  def impl[U: c.WeakTypeTag](c: Context)(priority: c.Expr[Int], pathSpec: c.Expr[String])(targetObject: c.Expr[Any]): c.Expr[PathTree[String, U]] = {
+  def impl[U: c.WeakTypeTag](c: Context)(priority: c.Expr[Long], pathSpec: c.Expr[String])(targetObject: c.Expr[Any]): c.Expr[PathTree[String, U]] = {
     import c.universe._
 
     val path = pathSpec.tree match {
@@ -40,7 +40,7 @@ object PathTreeBuilderImpl {
     //   path[U](9999, "/a/b/{String}/{Int}/c") { (s: String, i: Int) => BLAH }
     // is
     //   locally {
-    //     val priority: Int = 9999
+    //     val priority: Long = 9999
     //     val f: (String, Int) => U = { (s: String, i: Int) => BLAH }
     //     val p: List[Any] => U = { ss => f(ss(0).asInstanceOf[String], ss(1).asInstanceOf[Int]) }
     //     val terminus = PathTree.fixRoot[String](priority, Nil))
@@ -56,7 +56,7 @@ object PathTreeBuilderImpl {
     //   path[U](9999, "/a/b/{String}/{Int}/c/*") { (s: String, i: Int, xs: LinearSeq[String]) => BLAH }
     // is
     //   locally {
-    //     val priority: Int = 9999
+    //     val priority: Long = 9999
     //     val f: (String, Int, LinearSeq[String]) => U = { (s: String, i: Int, xs: LinearSeq[String]) => BLAH }
     //     val typeify: List[Any] => U = { ss => f(ss(0).asInstanceOf[String], ss(1).asInstanceOf[Int], ss(2).asInstanceOf[LinearSeq[String]]) }
     //     val terminus = PathTree.flexRoot[String](priority, _ :: Nil))
@@ -88,7 +88,7 @@ object PathTreeBuilderImpl {
     val uTree = TypeTree(weakTypeOf[U])
 
     val priorityName = newTermName(c.fresh("priority"))
-    val priorityTree = q"val $priorityName : _root_.scala.Int = $priority"
+    val priorityTree = q"val $priorityName : _root_.scala.Long = $priority"
 
     val fName = newTermName(c.fresh("f"))
     val fTree = locally {
@@ -108,9 +108,9 @@ object PathTreeBuilderImpl {
 
     val terminus = newTermName(c.fresh("terminus"))
     val terminusTree = if(hasStar) {
-      q"val $terminus = _root_.com.socrata.http.server.routing.two.PathTree.flexRoot[_root_.scala.Predef.String, _root_.scala.collection.immutable.List[_root_.scala.Any]]($priorityName, _ :: _root_.scala.collection.immutable.Nil)"
+      q"val $terminus = _root_.com.socrata.http.server.routing.PathTree.flexRoot[_root_.scala.Predef.String, _root_.scala.collection.immutable.List[_root_.scala.Any]]($priorityName, _ :: _root_.scala.collection.immutable.Nil)"
     } else {
-      q"val $terminus = _root_.com.socrata.http.server.routing.two.PathTree.fixRoot[_root_.scala.Predef.String][_root_.scala.collection.immutable.List[_root_.scala.Any]]($priorityName, _root_.scala.collection.immutable.Nil)"
+      q"val $terminus = _root_.com.socrata.http.server.routing.PathTree.fixRoot[_root_.scala.Predef.String][_root_.scala.collection.immutable.List[_root_.scala.Any]]($priorityName, _root_.scala.collection.immutable.Nil)"
     }
 
     val (lastP, pRev) = pathElements.foldRight((terminus, List.empty[Tree])) { (pathElement, acc) =>
@@ -121,9 +121,9 @@ object PathTreeBuilderImpl {
           (q"_root_.scala.collection.immutable.Map($literal -> $lastP)", q"_root_.scala.collection.immutable.Nil")
         case PathInstance(className) =>
           val cls = typeFromName(className)
-          (q"_root_.scala.collection.immutable.Map.empty", q"_root_.scala.collection.immutable.List(_root_.com.socrata.http.server.`routing-impl`.two.Extract[$cls]($lastP))")
+          (q"_root_.scala.collection.immutable.Map.empty", q"_root_.scala.collection.immutable.List(_root_.com.socrata.http.server.`routing-impl`.Extract[$cls]($lastP))")
       }
-      val newTerm = q"val $pN = new _root_.com.socrata.http.server.routing.two.PathTree[_root_.scala.Predef.String, _root_.scala.collection.immutable.List[_root_.scala.Any]]($lit, $funcy, _root_.scala.collection.immutable.Map.empty)"
+      val newTerm = q"val $pN = new _root_.com.socrata.http.server.routing.PathTree[_root_.scala.Predef.String, _root_.scala.collection.immutable.List[_root_.scala.Any]]($lit, $funcy, _root_.scala.collection.immutable.Map.empty)"
       (pN, newTerm :: termsSoFar)
     }
 

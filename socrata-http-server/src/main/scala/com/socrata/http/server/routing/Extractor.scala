@@ -1,4 +1,4 @@
-package com.socrata.http.server.routing.two
+package com.socrata.http.server.routing
 
 trait Extractor[T] {
   def extract(s: String): Option[T]

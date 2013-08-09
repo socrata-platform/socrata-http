@@ -1,6 +1,6 @@
-package com.socrata.http.server.`routing-impl`.two
+package com.socrata.http.server.`routing-impl`
 
-import com.socrata.http.server.routing.two.{Extractor, PathTree}
+import com.socrata.http.server.routing.{Extractor, PathTree}
 import scala.runtime.AbstractFunction1
 
 object Extract {

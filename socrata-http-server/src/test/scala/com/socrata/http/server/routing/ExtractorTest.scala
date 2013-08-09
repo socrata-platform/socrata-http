@@ -1,4 +1,4 @@
-package com.socrata.http.server.routing.two
+package com.socrata.http.server.routing
 
 import org.scalatest.matchers.MustMatchers
 import org.scalatest.FunSuite
