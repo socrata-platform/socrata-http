@@ -136,8 +136,6 @@ object PathTreeBuilderImpl {
       $lastP.mapStrict($typeifyName)
     }"""
 
-    println(result)
-
     c.Expr[PathTree[String, U]](result)
   }
 }
