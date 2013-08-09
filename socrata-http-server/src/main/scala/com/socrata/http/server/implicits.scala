@@ -16,6 +16,6 @@ object implicits {
         Option(underlying.getHeader("Host")).getOrElse("")).split(':').head
 
     def requestPath: List[String] = // TODO: strip off any context and/or servlet path
-      underlying.getRequestURI.split('/').iterator.drop(1).map(URLDecoder.decode(_, "UTF-8")).toList
+      underlying.getRequestURI.split("/", -1 /* I hate you, Java */).iterator.drop(1).map(URLDecoder.decode(_, "UTF-8")).toList
   }
 }
