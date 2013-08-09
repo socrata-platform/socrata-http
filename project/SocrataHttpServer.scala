@@ -10,8 +10,13 @@ object SocrataHttpServer {
         javaxServlet % "provided",
         scalaReflect(sv),
         simpleArm,
-        slf4jApi
+        slf4jApi,
+        scalaCheck % "test"
       )
-    }
+    },
+
+    // macro-paradise macros
+    resolvers += Resolver.sonatypeRepo("snapshots"),
+    addCompilerPlugin("org.scala-lang.plugins" % "macro-paradise_2.10.2" % "2.0.0-SNAPSHOT")
   )
 }
