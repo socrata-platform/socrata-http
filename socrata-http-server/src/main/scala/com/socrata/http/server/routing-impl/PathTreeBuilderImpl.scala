@@ -21,20 +21,28 @@ object PathTreeBuilderImpl {
     val path = rep1(dir) ~ opt(slash ~ star) ^^ { case a ~ b => (a, b.isDefined) }
   }
 
-  // "(/([^/]*)|{ClassName})+"
-  def impl[U: c.WeakTypeTag](c: Context)(priority: c.Expr[Long], pathSpec: c.Expr[String])(targetObject: c.Expr[Any]): c.Expr[PathTree[String, U]] = {
+  def parsePathInfo(c: Context)(pathSpec: c.Expr[String]) : (Seq[ComponentType], Boolean) = {
     import c.universe._
 
     val path = pathSpec.tree match {
       case Literal(Constant(s: String)) => s
-      case other => c.abort(other.pos, "The `pathSpec' arrgument to a SmartRoute must be a string literal")
+      case other => c.abort(other.pos, "The `pathSpec' argument must be a string literal")
     }
 
     val parser = new Parser
     val (pathElements, hasStar) = parser.parseAll(parser.path, path) match {
-      case parser.Success(elems, _) => elems : (Seq[ComponentType], Boolean)
+      case parser.Success(elems, _) => elems
       case fail: parser.NoSuccess => c.abort(pathSpec.tree.pos, "Malformed pathspec: " + fail.msg)
     }
+
+    (pathElements, hasStar)
+  }
+
+  // "(/([^/]*)|{ClassName})+"
+  def impl[U: c.WeakTypeTag](c: Context)(priority: c.Expr[Long], pathSpec: c.Expr[String])(targetObject: c.Expr[Any]): c.Expr[PathTree[String, U]] = {
+    import c.universe._
+
+    val (pathElements, hasStar) = parsePathInfo(c)(pathSpec)
 
     // The output of
     //   path[U](9999, "/a/b/{String}/{Int}/c") { (s: String, i: Int) => BLAH }
