@@ -4,6 +4,7 @@ import scala.language.experimental.macros
 import scala.reflect.macros.Context
 import scala.util.parsing.combinator.RegexParsers
 import scala.collection.immutable.LinearSeq
+import com.socrata.http.server.routing.two.PathTree
 
 object RouteImpl {
   sealed abstract class ComponentType
@@ -25,7 +26,7 @@ object RouteImpl {
   }
 
   // "(/([^/]*)|{ClassName})+"
-  def impl[U: c.WeakTypeTag](c: Context)(pathSpec: c.Expr[String])(targetObject: c.Expr[Any]): c.Expr[LinearSeq[String] => Option[U]] = {
+  def impl[U: c.WeakTypeTag](c: Context)(pathSpec: c.Expr[String])(targetObject: c.Expr[Any]): c.Expr[PathTree[String, U]] = {
     import c.universe._
 
     val path = pathSpec.tree match {
@@ -135,6 +136,6 @@ object RouteImpl {
 
     println(result)
 
-    c.Expr[LinearSeq[String] => Option[U]](result)
+    c.Expr[PathTree[String, U]](result)
   }
 }
