@@ -9,6 +9,6 @@ class DirectoryTest extends FunSuite with MustMatchers {
   test("Directory compiles") {
     Directory("/foo")
     Directory("/foo/{String}")
-    Directory("/foo/{String}/*")
+    // Directory("/foo/{String}/*")
   }
 }
