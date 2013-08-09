@@ -47,8 +47,6 @@ object DirectoryImpl {
 
     val tree = q"_root_.com.socrata.http.server.routing.PathTreeBuilder[_root_.com.socrata.http.server.HttpService](_root_.com.socrata.http.server.`routing-impl`.RouteImpl.nextPriority(), $pathSpec)($fTree)"
 
-    println(tree)
-
     c.Expr[PathTree[String, HttpService]](tree)
   }
 
