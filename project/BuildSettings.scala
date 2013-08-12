@@ -10,10 +10,17 @@ object BuildSettings {
   val cloudbeesSnapshots = "snapshots" at cloudbees + "snapshot"
   val cloudbeesReleases = "releases" at cloudbees + "release"
 
-  val buildSettings: Seq[Setting[_]] = Defaults.defaultSettings ++ WebDav.scopedSettings ++ Seq(
+  val buildSettings: Seq[Setting[_]] = Defaults.defaultSettings ++ WebDav.scopedSettings ++ net.virtualvoid.sbt.graph.Plugin.graphSettings ++ Seq(
     organization := "com.socrata",
     version := "2.0.0-SNAPSHOT",
     scalaVersion := "2.10.2",
+    resolvers <++= version { v =>
+      if(v.endsWith("SNAPSHOT")) Seq(cloudbeesSnapshots)
+      else Nil
+    },
+    // TODO: remove this once we're publishing to maven central so that
+    // it doesn't end up in the POM file.
+    resolvers += cloudbeesReleases,
     credentials ++= List(new File("/private/socrata-oss/maven-credentials")).flatMap { f =>
       if(f.exists) Some(Credentials(f)) else None
     },
@@ -37,13 +44,6 @@ object BuildSettings {
       <dependencies>
         <conflict org="com.socrata" manager="latest-compatible"/>
         <conflict org="com.rojoma" manager="latest-compatible"/>
-      </dependencies>,
-    resolvers <++= version { v =>
-      if(v.endsWith("SNAPSHOT")) Seq(cloudbeesSnapshots)
-      else Nil
-    },
-    // TODO: remove this once we're publishing to maven central so that
-    // it doesn't end up in the POM file.
-    resolvers += cloudbeesReleases
+      </dependencies>
   )
 }
