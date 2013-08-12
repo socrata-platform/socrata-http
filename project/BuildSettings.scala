@@ -12,7 +12,7 @@ object BuildSettings {
 
   val buildSettings: Seq[Setting[_]] = Defaults.defaultSettings ++ WebDav.scopedSettings ++ net.virtualvoid.sbt.graph.Plugin.graphSettings ++ Seq(
     organization := "com.socrata",
-    version := "1.3.1",
+    version := "1.3.2",
     scalaVersion := "2.10.0",
     crossScalaVersions := Seq("2.8.1", "2.9.2", "2.10.0"),
     resolvers <++= version { v =>
