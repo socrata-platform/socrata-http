@@ -3,9 +3,13 @@ import Keys._
 
 import com.typesafe.tools.mima.plugin.MimaPlugin.mimaDefaultSettings
 import com.typesafe.tools.mima.plugin.MimaKeys.previousArtifact
-import eu.diversit.sbt.plugin.WebDavPlugin
+import eu.diversit.sbt.plugin.WebDavPlugin._
 
 object BuildSettings {
+  val cloudbees = "https://repository-socrata-oss.forge.cloudbees.com/"
+  val cloudbeesSnapshots = "snapshots" at cloudbees + "snapshot"
+  val cloudbeesReleases = "releases" at cloudbees + "release"
+
   val buildSettings: Seq[Setting[_]] = Defaults.defaultSettings ++ WebDav.scopedSettings ++ Seq(
     organization := "com.socrata",
     version := "2.0.0-SNAPSHOT",
@@ -14,12 +18,8 @@ object BuildSettings {
       if(f.exists) Some(Credentials(f)) else None
     },
     publishTo <<= version { v =>
-      val cloudbees = "https://repository-socrata-oss.forge.cloudbees.com/"
-      if(v.endsWith("SNAPSHOT")) {
-        Some("snapshots" at cloudbees + "snapshot")
-      } else {
-        Some("releases" at cloudbees + "release")
-      }
+      if(v.endsWith("SNAPSHOT")) Some(cloudbeesSnapshots)
+      else Some(cloudbeesReleases)
     }
   )
 
@@ -37,6 +37,13 @@ object BuildSettings {
       <dependencies>
         <conflict org="com.socrata" manager="latest-compatible"/>
         <conflict org="com.rojoma" manager="latest-compatible"/>
-      </dependencies>
+      </dependencies>,
+    resolvers <++= version { v =>
+      if(v.endsWith("SNAPSHOT")) Seq(cloudbeesSnapshots)
+      else Nil
+    },
+    // TODO: remove this once we're publishing to maven central so that
+    // it doesn't end up in the POM file.
+    resolvers += cloudbeesReleases
   )
 }
