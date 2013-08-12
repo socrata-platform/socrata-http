@@ -3,12 +3,24 @@ import Keys._
 
 import com.typesafe.tools.mima.plugin.MimaPlugin.mimaDefaultSettings
 import com.typesafe.tools.mima.plugin.MimaKeys.previousArtifact
+import eu.diversit.sbt.plugin.WebDavPlugin
 
 object BuildSettings {
-  val buildSettings: Seq[Setting[_]] = Defaults.defaultSettings ++ Seq(
+  val buildSettings: Seq[Setting[_]] = Defaults.defaultSettings ++ WebDav.scopedSettings ++ Seq(
     organization := "com.socrata",
     version := "2.0.0-SNAPSHOT",
-    scalaVersion := "2.10.2"
+    scalaVersion := "2.10.2",
+    credentials ++= List(new File("/private/socrata-oss/maven-credentials")).flatMap { f =>
+      if(f.exists) Some(Credentials(f)) else None
+    },
+    publishTo <<= version { v =>
+      val cloudbees = "https://repository-socrata-oss.forge.cloudbees.com/"
+      if(v.endsWith("SNAPSHOT")) {
+        Some("snapshots" at cloudbees + "snapshot")
+      } else {
+        Some("releases" at cloudbees + "release")
+      }
+    }
   )
 
   val projectSettings: Seq[Setting[_]] = buildSettings ++ mimaDefaultSettings ++ Seq(
