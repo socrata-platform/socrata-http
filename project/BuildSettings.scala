@@ -3,13 +3,32 @@ import Keys._
 
 import com.typesafe.tools.mima.plugin.MimaPlugin.mimaDefaultSettings
 import com.typesafe.tools.mima.plugin.MimaKeys.previousArtifact
+import eu.diversit.sbt.plugin.WebDavPlugin._
 
 object BuildSettings {
-  val buildSettings: Seq[Setting[_]] = Defaults.defaultSettings ++ Seq(
+  val cloudbees = "https://repository-socrata-oss.forge.cloudbees.com/"
+  val cloudbeesSnapshots = "snapshots" at cloudbees + "snapshot"
+  val cloudbeesReleases = "releases" at cloudbees + "release"
+
+  val buildSettings: Seq[Setting[_]] = Defaults.defaultSettings ++ WebDav.scopedSettings ++ net.virtualvoid.sbt.graph.Plugin.graphSettings ++ Seq(
     organization := "com.socrata",
-    version := "1.3.1-SNAPSHOT",
+    version := "1.3.1",
     scalaVersion := "2.10.0",
-    crossScalaVersions := Seq("2.8.1", "2.9.2", "2.10.0")
+    crossScalaVersions := Seq("2.8.1", "2.9.2", "2.10.0"),
+    resolvers <++= version { v =>
+      if(v.endsWith("SNAPSHOT")) Seq(cloudbeesSnapshots)
+      else Nil
+    },
+    // TODO: remove this once we're publishing to maven central so that
+    // it doesn't end up in the POM file.
+    resolvers += cloudbeesReleases,
+    credentials ++= List(new File("/private/socrata-oss/maven-credentials")).flatMap { f =>
+      if(f.exists) Some(Credentials(f)) else None
+    },
+    publishTo <<= version { v =>
+      if(v.endsWith("SNAPSHOT")) Some(cloudbeesSnapshots)
+      else Some(cloudbeesReleases)
+    }
   )
 
   val projectSettings: Seq[Setting[_]] = buildSettings ++ mimaDefaultSettings ++ Seq(
