@@ -101,9 +101,16 @@ object PathTreeBuilderImpl {
     val fName = newTermName(c.fresh("f"))
     val fTree = locally {
       val argCount = types.length
-      val typeName = typeFromName(s"_root_.scala.Function" + argCount)
-      val typeParams = types :+ uTree
-      q"val $fName: $typeName[..$typeParams] = $targetObject"
+      if(argCount == 0) {
+        val targetObjectName = newTermName(c.fresh("target"))
+        List(
+          q"val $targetObjectName : $uTree = $targetObject",
+          q"val $fName: Function0[$uTree] = () => $targetObjectName")
+      } else {
+        val typeName = typeFromName(s"_root_.scala.Function" + argCount)
+        val typeParams = types :+ uTree
+        List(q"val $fName: $typeName[..$typeParams] = $targetObject")
+      }
     }
 
     val typeifyName = newTermName(c.fresh("typeify"))
@@ -137,7 +144,7 @@ object PathTreeBuilderImpl {
 
     val result = q"""{
       $priorityTree
-      $fTree
+      ..$fTree
       $pTree
       $terminusTree
       ..${pRev.reverse}
