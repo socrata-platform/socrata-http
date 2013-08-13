@@ -154,6 +154,13 @@ class RequestBuilder private (val host: String,
   def json(contents: Iterator[JsonEvent]) =
     new JsonHttpRequest(this.finish("POST"), contents)
 
+  /**
+   * @note This does ''not'' take ownership of the input stream.  It must remain open for the
+   *       duration of the HTTP request.
+   */
+  def blob(contents: InputStream, contentType: String = "application/octet-stream") =
+    new BlobHttpRequest(this.finish("POST"), contents, contentType)
+
   def url = RequestBuilder.url(this)
 }
 
@@ -255,3 +262,4 @@ class BodylessHttpRequest(val builder: RequestBuilder) extends SimpleHttpRequest
 class FormHttpRequest(val builder: RequestBuilder, val contents: Iterable[(String, String)]) extends SimpleHttpRequest("form")
 class FileHttpRequest(val builder: RequestBuilder, val contents: InputStream, val file: String, val field: String, val contentType: String) extends SimpleHttpRequest("file")
 class JsonHttpRequest(val builder: RequestBuilder, val contents: Iterator[JsonEvent]) extends SimpleHttpRequest("JSON")
+class BlobHttpRequest(val builder: RequestBuilder, val contents: InputStream, val contentType: String) extends SimpleHttpRequest("blob")

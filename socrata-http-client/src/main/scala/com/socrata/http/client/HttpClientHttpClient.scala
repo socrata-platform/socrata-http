@@ -166,6 +166,7 @@ class HttpClientHttpClient(livenessChecker: LivenessChecker,
       case form: FormHttpRequest => processForm(form)
       case file: FileHttpRequest => processFile(file)
       case json: JsonHttpRequest => processJson(json)
+      case blob: BlobHttpRequest => processBlob(blob)
     }
   }
 
@@ -233,6 +234,16 @@ class HttpClientHttpClient(livenessChecker: LivenessChecker,
       init()
       val sendEntity = new MultipartEntity
       sendEntity.addPart(req.field, new InputStreamBody(req.contents, req.contentType, req.file))
+      val op = bodyEnclosingOp(req)
+      op.setEntity(sendEntity)
+      send(op, req.builder.timeoutMS, pingTarget(req), f)
+    }
+  }
+
+  def processBlob(req: BlobHttpRequest): Managed[RawResponse] = new SimpleArm[RawResponse] {
+    def flatMap[A](f: RawResponse => A): A = {
+      init()
+      val sendEntity = new InputStreamEntity(req.contents, -1, ContentType.create(req.contentType))
       val op = bodyEnclosingOp(req)
       op.setEntity(sendEntity)
       send(op, req.builder.timeoutMS, pingTarget(req), f)
