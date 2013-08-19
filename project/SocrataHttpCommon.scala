@@ -9,6 +9,7 @@ object SocrataHttpCommon {
       commonsLang,
       slf4jApi,
       simpleArm,
+      rojomaJson,
       scalaCheck % "test"
     )
   )

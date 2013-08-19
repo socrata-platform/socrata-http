@@ -5,7 +5,7 @@ import javax.servlet.http.HttpServletRequest
 import java.net.URLDecoder
 
 import com.socrata.http.server.`-impl`.ChainedHttpResponse
-import com.socrata.http.common.util.ContentNegotiation
+import com.socrata.http.common.util.{HttpUtils, ContentNegotiation}
 import scala.util.Try
 import javax.activation.MimeType
 import java.nio.charset.Charset
@@ -36,6 +36,10 @@ object implicits {
       checkHeaderAccess(underlying.getHeaders(name)).asInstanceOf[java.util.Enumeration[String]].asScala
 
     def contentType = Option(underlying.getContentType)
+
+    def accept = headers("Accept").flatMap(HttpUtils.parseAccept)
+    def acceptCharset = headers("Accept-Charset").flatMap(HttpUtils.parseAcceptCharset)
+    def acceptLanguage = headers("Accept-Language").flatMap(HttpUtils.parseAcceptLanguage)
 
     /**
      * Negotiate a MIME type for the response.

@@ -3,7 +3,7 @@ package com.socrata.http.client
 import java.io.InputStream
 
 import com.rojoma.json.io.JsonEvent
-import com.socrata.http.client.util.HttpUtils
+import com.socrata.http.common.util.HttpUtils
 import com.socrata.http.common.livenesscheck.LivenessCheckInfo
 
 class RequestBuilder private (val host: String,

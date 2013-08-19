@@ -10,7 +10,6 @@ object SocrataHttpClient {
       apacheHttpMime,
       jclOverSlf4j,
       simpleArm,
-      rojomaJson,
       slf4jApi,
       scalaCheck % "test",
       slf4jSimple % "test"
