@@ -51,7 +51,7 @@ object RouteImpl {
         // doing this via string building because building it the "right" way (building
         // the args as ValDefs and splicing them in) makes user classes require the macro-paradise
         // plugin to compile.
-        val args = argTypes.zipWithIndex.map { case (_, i) => "x$i : _root_.scala.Any" }.mkString(",")
+        val args = argTypes.zipWithIndex.map { case (_, i) => s"x$i : _root_.scala.Any" }.mkString(",")
         val defdef = c.parse(s"def apply($args) = $wrappedRedirectName")
         q"new $typeName[..$typeParams] { $defdef }"
       } else {

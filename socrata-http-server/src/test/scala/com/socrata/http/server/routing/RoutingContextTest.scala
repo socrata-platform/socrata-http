@@ -13,6 +13,7 @@ class RoutingContextTest extends FunSuite with MustMatchers {
     import SimpleRouteContext._
     Directory("/foo")
     Directory("/foo/{String}")
+    Directory("/foo/{String}/{String}")
     // Directory("/foo/{String}/*")
   }
 
