@@ -35,5 +35,5 @@ object HttpClient {
   val jsonContentTypeBase = "application/json"
   val jsonContentType = ContentType.create(jsonContentTypeBase, StandardCharsets.UTF_8)
   val formContentTypeBase = "application/x-www-form-urlencoded"
-  val formContentType = ContentType.create(formContentTypeBase)
+  val formContentType = ContentType.create(formContentTypeBase, StandardCharsets.UTF_8)
 }
