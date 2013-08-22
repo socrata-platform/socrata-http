@@ -18,7 +18,9 @@ object PathTreeBuilderImpl {
     val slash = "/"
     val star = '*'
     val dir = slash ~> ((lit ^^ PathLiteral) ||| (className ^^ PathInstance))
-    val path = rep1(dir) ~ opt(slash ~ star) ^^ { case a ~ b => (a, b.isDefined) }
+    val path1 = rep1(dir) ~ opt(slash ~ star) ^^ { case a ~ b => (a, b.isDefined) }
+    val path0 = slash ~ star ^^ { case a ~ b => (Nil, true) }
+    val path = path0 ||| path1
   }
 
   def parsePathInfo(c: Context)(pathSpec: c.Expr[String]) : (Seq[ComponentType], Boolean) = {

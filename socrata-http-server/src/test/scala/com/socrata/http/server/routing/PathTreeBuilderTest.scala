@@ -18,4 +18,10 @@ class PathTreeBuilderTest extends FunSuite with MustMatchers {
     pt(List("a", "42")) must equal (Some("pat 42"))
     pt(List("a", "c")) must equal (None)
   }
+
+  test("initial flexmatch") {
+    val pt = PathTreeBuilder[Seq[String]](1, "/*")(identity[Seq[String]] _)
+    pt(List("q", "w")) must equal (Some(List("q","w")))
+    pt(Nil) must equal (Some(Nil))
+  }
 }
