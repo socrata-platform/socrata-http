@@ -24,4 +24,16 @@ class PathTreeBuilderTest extends FunSuite with MustMatchers {
     pt(List("q", "w")) must equal (Some(List("q","w")))
     pt(Nil) must equal (Some(Nil))
   }
+
+  test("empty component at the end") {
+    val pt = PathTreeBuilder[String](1, "/a/") { "a" }
+    pt(List("a")) must equal (None)
+    pt(List("a","")) must equal (Some("a"))
+  }
+
+  test("empty component in the middle") {
+    val pt = PathTreeBuilder[String](1, "/a//b") { "ab" }
+    pt(List("a","b")) must equal (None)
+    pt(List("a","","b")) must equal (Some("ab"))
+  }
 }

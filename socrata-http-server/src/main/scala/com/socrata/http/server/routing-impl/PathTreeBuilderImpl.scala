@@ -13,10 +13,12 @@ object PathTreeBuilderImpl {
   class Parser extends RegexParsers {
     val classNameComponent = "[a-zA-Z0-9_]+".r
     val dot = "."
-    val className = "{" ~> rep1sep(classNameComponent, dot) <~ "}" ^^ { xs => xs.mkString(".") }
-    val lit = "[^{/*][^/]*".r
+    // "(?=/|$)" == "lookahead for slash or end of input"
+    val className = "{" ~> rep1sep(classNameComponent, dot) <~ "}(?=/|$)".r ^^ { xs => xs.mkString(".") }
+    // "any single character that is not { or / or *, or a character that is not { or / followed by one or more characters that are not /, or no characters, all followed by end of component"
+    val lit = "(?:[^{/*]|[^{/][^/]+|)(?=/|$)".r
     val slash = "/"
-    val star = '*'
+    val star = "\\*(?=/|$)".r
     val dir = slash ~> ((lit ^^ PathLiteral) ||| (className ^^ PathInstance))
     val path1 = rep1(dir) ~ opt(slash ~ star) ^^ { case a ~ b => (a, b.isDefined) }
     val path0 = slash ~ star ^^ { case a ~ b => (Nil, true) }
