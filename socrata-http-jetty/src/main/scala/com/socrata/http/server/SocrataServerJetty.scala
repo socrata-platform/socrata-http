@@ -2,14 +2,17 @@ package com.socrata.http.server
 
 import sun.misc.Signal
 import sun.misc.SignalHandler
+import java.util.concurrent.Semaphore
 
 import com.socrata.util.logging.LazyStringLogger
-import org.eclipse.jetty.server.handler.AbstractHandler
+import org.eclipse.jetty.server.handler.GzipHandler
 import org.eclipse.jetty.server.nio.SelectChannelConnector
-import org.eclipse.jetty.server.{Request, Server}
-import javax.servlet.http.{HttpServletResponse, HttpServletRequest}
-import java.util.concurrent.atomic.AtomicInteger
-import java.util.concurrent.Semaphore
+import org.eclipse.jetty.server.{Handler, Server}
+
+case class GzipParameters(excludeUserAgent: String => Boolean = Set.empty,
+                          mimeTypes: String => Boolean = Function.const(true),
+                          bufferSize: Int = 8192,
+                          minGzipSize: Int = 256)
 
 /**
  * @param handler Service used to handle requests.
@@ -27,7 +30,8 @@ class SocrataServerJetty(
   broker: ServerBroker = ServerBroker.Noop,
   deregisterWaitMS: Int = 5000,
   gracefulShutdownTimeoutMS: Int = 60*60*1000,
-  onFatalException: Throwable => Unit = SocrataServerJetty.shutDownJVM
+  onFatalException: Throwable => Unit = SocrataServerJetty.shutDownJVM,
+  gzipParameters: Option[GzipParameters] = Some(GzipParameters())
 ) {
   val log = LazyStringLogger[this.type]
 
@@ -47,33 +51,9 @@ class SocrataServerJetty(
     // anywhere.. well, there shouldn't be!
     // server.setStopAtShutdown(true)
 
-    val inProgress = new AtomicInteger(0)
-
-    server.setHandler(new AbstractHandler {
-      def handle(target: String, baseRequest: Request, request: HttpServletRequest, response: HttpServletResponse) {
-        inProgress.getAndIncrement()
-        try {
-          baseRequest.setHandled(true)
-          handler(request)(response)
-        } catch {
-          case e: ThreadDeath =>
-            // whoa, someone actually stopped us?  Ok.  We'll obey,
-            // but we'll scream first.
-            log.warn("Thread terminating due to Thread#stop")
-            throw e
-          case e: Throwable if nonFatal(e) =>
-            log.error("Unhandled exception", e)
-            if(!response.isCommitted) response.sendError(500)
-            else log.warn("Not sending 500; response already committed")
-          case e: Throwable =>
-            // ok.  Fatal error.  Out of memory or other really bad
-            // "we should be shutting down the JVM now"-level problem.
-            onFatalException(e)
-        } finally {
-          inProgress.getAndDecrement()
-        }
-      }
-    })
+    val wrappedHandler = List[Handler => Handler](gzipHandler).foldLeft[Handler](new FunctionHandler(handler)) { (h, wrapper) => wrapper(h) }
+    val countingHandler = new CountingHandler(wrappedHandler, onFatalException)
+    server.setHandler(countingHandler)
 
     val mbContainer = new org.eclipse.jetty.jmx.MBeanContainer(java.lang.management.ManagementFactory.getPlatformMBeanServer)
     server.getContainer.addEventListener(mbContainer)
@@ -141,7 +121,7 @@ class SocrataServerJetty(
         // deregisterWaitMS timeout should be large enough to prevent this
         // from happening.
         log.info("Waiting for all pending requests to terminate")
-        awaitTermination(inProgress)
+        awaitTermination(countingHandler.currentlyInProgress)
       } finally {
         log.info("Stopping Jetty")
         server.stop()
@@ -158,17 +138,20 @@ class SocrataServerJetty(
     log.info("Exiting")
   }
 
-  // Note: this has a slightly different meaning for "nonFatal" than
-  // scala.util.control.NonFatal's does.  In particular, it's looking
-  // for fatal-to-the-Thread, wheras we're looking for fatal-to-the-
-  // JVM.
-  private def nonFatal(t: Throwable): Boolean = t match {
-    case _: StackOverflowError => true
-    case _: VirtualMachineError => false
-    case _ => true
+  private def gzipHandler(underlying: Handler): Handler = gzipParameters match {
+    case Some(params) =>
+      val gz = new GzipHandler
+      gz.setHandler(underlying)
+      gz.setExcluded(new StringPredicateSet(params.excludeUserAgent))
+      gz.setMimeTypes(new StringPredicateSet(params.mimeTypes))
+      gz.setBufferSize(params.bufferSize)
+      gz.setMinGzipSize(params.minGzipSize)
+      gz
+    case None =>
+      underlying
   }
 
-  private def awaitTermination(inProgress: AtomicInteger) {
+  private def awaitTermination(inProgress: () => Int) {
     val messageEveryMS = 30 * 1000
     val sleepTimeoutMS = 100
     val messageEvery = messageEveryMS / sleepTimeoutMS
@@ -176,14 +159,14 @@ class SocrataServerJetty(
     var ctr = 0
     val gracefulShutdownTimeout = gracefulShutdownTimeoutMS * 1000000L
     val start = System.nanoTime()
-    var remaining = inProgress.get
+    var remaining = inProgress()
     while(remaining != 0 && (System.nanoTime() - start) < gracefulShutdownTimeout) {
       if(ctr % messageEvery == 0) {
         log.info("There are " + remaining + " request(s) still being handled")
       }
       ctr += 1
       Thread.sleep(sleepTimeoutMS)
-      remaining = inProgress.get
+      remaining = inProgress()
     }
     if(remaining != 0)
       log.warn("There are " + remaining + " job(s) still running after the shutdown timeout is reached")
