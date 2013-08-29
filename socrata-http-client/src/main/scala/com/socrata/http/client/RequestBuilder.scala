@@ -1,10 +1,13 @@
 package com.socrata.http.client
 
-import java.io.InputStream
+import java.io.{ByteArrayOutputStream, InputStream}
 
 import com.rojoma.json.io.JsonEvent
 import com.socrata.http.common.util.HttpUtils
 import com.socrata.http.common.livenesscheck.LivenessCheckInfo
+import java.net.{URL, URI, URISyntaxException}
+import java.nio.charset.{CharacterCodingException, StandardCharsets}
+import java.nio.ByteBuffer
 
 class RequestBuilder private (val host: String,
                               val secure: Boolean,
@@ -165,8 +168,57 @@ class RequestBuilder private (val host: String,
 }
 
 object RequestBuilder {
-  def apply(host: String, secure: Boolean = false) =
+  def apply(host: String, secure: Boolean = false): RequestBuilder =
     new RequestBuilder(host, secure, defaultPort(secure), Nil, Vector.empty, Vector.empty, None, None, None, None, None)
+
+  /** Converts a Java `URI` object to a RequestBuilder.
+    * @throws IllegalArgumentException if the URL is not an absolute HTTP or HTTPS URI, or if a query parameter does
+    *                                  not have an `=` character, or if any percent-encoding is not UTF-8.
+    */
+  def apply(uri: URI): RequestBuilder = {
+    val host = uri.getHost
+    if(host eq null) throw new IllegalArgumentException("The URI has no host")
+    val secure = uri.getScheme match {
+      case "http" => false
+      case "https" => true
+      case _ => throw new IllegalArgumentException("The URI must be an HTTP or HTTPS URI")
+    }
+    val port = uri.getPort match {
+      case -1 => defaultPort(secure)
+      case n => n
+    }
+    val path = Option(uri.getRawPath).getOrElse("/").split("/",-1).drop(1).map(decP)
+    val query = Option(uri.getRawQuery).map(_.split("&", -1)).getOrElse(new Array[String](0)).map { kv =>
+      kv.split("=", 2) match {
+        case Array(a) => throw new IllegalArgumentException("All query parameters must have both a key and a value")
+        case Array(a, b) => (decQ(a), decQ(b))
+      }
+    }
+    new RequestBuilder(
+      host,
+      secure,
+      port,
+      path,
+      query,
+      Vector.empty,
+      None,
+      None,
+      None,
+      None,
+      None
+    )
+  }
+
+  /** Converts a Java `URL` object to a RequestBuilder.
+    * @throws IllegalArgumentException if the URL cannot be converted to a URI, or for any reason `apply(java.net.URI)` can throw.
+    */
+  def apply(url: URL): RequestBuilder =
+    try {
+      apply(url.toURI)
+    } catch {
+      case e: URISyntaxException =>
+        throw new IllegalArgumentException("URL cannot be converted to URI", e)
+    }
 
   private def defaultPort(secure: Boolean) =
     if(secure) 443 else 80
@@ -208,6 +260,70 @@ object RequestBuilder {
 
   private def encQ(sb: java.lang.StringBuilder, s: String) =
     enc(sb, s, encQB)
+
+  private def decodeHex(c: Char): Int = {
+    if(c >= '0' && c <= '9') c - '0'
+    else if(c >= 'A' && c <= 'F') 10 + c - 'A'
+    else if(c >= 'a' && c <= 'f') 10 + c - 'a'
+    else throw new IllegalArgumentException("Expected hex digit, got " + c)
+  }
+
+  private def decodePct(s: String, i: Int): Int = {
+    try {
+      val h1 = s.charAt(i + 1)
+      val h2 = s.charAt(i + 2)
+      (decodeHex(h1) << 4) + decodeHex(h2)
+    } catch {
+      case e: IndexOutOfBoundsException =>
+        throw new IllegalArgumentException("End of input while looking for two hex digits")
+    }
+  }
+
+  private class NCBaos extends ByteArrayOutputStream {
+    def toByteBuffer = ByteBuffer.wrap(buf, 0, count)
+  }
+
+  private def decP(s: String): String = {
+    val baos = new NCBaos
+    var i = 0
+    while(i != s.length) {
+      val c = s.charAt(i)
+      if(c == '%') {
+        baos.write(decodePct(s, i))
+        i += 3
+      } else {
+        baos.write(c.toInt)
+        i += 1
+      }
+    }
+    stringify(baos.toByteBuffer)
+  }
+
+  private def stringify(xs: ByteBuffer) = try {
+    StandardCharsets.UTF_8.newDecoder.decode(xs).toString
+  } catch {
+    case e: CharacterCodingException =>
+      throw new IllegalArgumentException("Percent-encoding is not UTF-8", e)
+  }
+
+  private def decQ(s: String): String = {
+    val baos = new NCBaos
+    var i = 0
+    while(i != s.length) {
+      val c = s.charAt(i)
+      if(c == '%') {
+        baos.write(decodePct(s, i))
+        i += 3
+      } else if(c == '+') {
+        baos.write(' ')
+        i += 1
+      } else {
+        baos.write(c.toInt)
+        i += 1
+      }
+    }
+    stringify(baos.toByteBuffer)
+  }
 
   private def url(req: RequestBuilder): String = {
     val sb = new java.lang.StringBuilder
