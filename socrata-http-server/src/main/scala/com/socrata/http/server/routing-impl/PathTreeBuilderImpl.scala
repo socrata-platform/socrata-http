@@ -18,7 +18,7 @@ object PathTreeBuilderImpl {
     val dot = "."
     // "(?=/|$)" == "lookahead for slash or end of input"
     val qualName = rep1sep(identifier, dot) ^^ { xs => xs.mkString(".") }
-    val classNamePattern = "{" ~>  qualName <~ "}(?=/|$)".r
+    val classNamePattern = ("{" ~>  qualName <~ "}(?=/|$)".r) ||| ("\\?(?=/|$)".r ^^^ "_root_.scala.Predef.String")
     val classNameWithExtPattern = "{{" ~> qualName ~ opt("[:!]".r ~ opt(qualName)) <~ "}}(?=/|$)".r ^^ {
       case cn ~ Some(":" ~ Some(rn)) => (cn, rn, false)
       case cn ~ Some(":" ~ None) => (cn, standardRegexName, false)
@@ -26,8 +26,8 @@ object PathTreeBuilderImpl {
       case cn ~ Some("!" ~ None) => (cn, standardRegexName, true)
       case cn ~ None => (cn, standardRegexName, false)
     }
-    // "any single character that is not { or / or *, or a character that is not { or / followed by one or more characters that are not /, or no characters, all followed by end of component"
-    val lit = "(?:[^{/*]|[^{/][^/]+|)(?=/|$)".r
+    // "any single character that is not { or / or * or ?, or a character that is not { or / followed by one or more characters that are not /, or no characters, all followed by end of component"
+    val lit = "(?:[^{/*?]|[^{/][^/]+|)(?=/|$)".r
     val slash = "/"
     val star = "\\*(?=/|$)".r
     val dir = slash ~> ((lit ^^ PathLiteral) ||| (classNamePattern ^^ PathInstance) ||| (classNameWithExtPattern ^^ PathTypedInstance.tupled))
