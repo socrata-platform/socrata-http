@@ -157,12 +157,12 @@ object PathTreeBuilderImpl {
         case PathInstance(className) =>
           val cls = typeFromName(className)
           (q"_root_.scala.collection.immutable.Map.empty", q"_root_.scala.collection.immutable.List(_root_.com.socrata.http.server.`routing-impl`.Extract[$cls]($lastP))")
-        case PathTypedInstance(className, regexName, required) =>
+        case PathTypedInstance(className, matcherName, required) =>
           val cls = typeFromName(className)
-          val re = termFromName(regexName)
+          val matcher = termFromName(matcherName)
           val extractor =
-            if(required) q"_root_.com.socrata.http.server.`routing-impl`.Extract.typedExtractor[$cls]($re)"
-            else q"_root_.com.socrata.http.server.`routing-impl`.Extract.optionallyTypedExtractor[$cls]($re)"
+            if(required) q"_root_.com.socrata.http.server.`routing-impl`.Extract.typedExtractor[$cls]($matcher)"
+            else q"_root_.com.socrata.http.server.`routing-impl`.Extract.optionallyTypedExtractor[$cls]($matcher)"
           (q"_root_.scala.collection.immutable.Map.empty", q"_root_.scala.collection.immutable.List(_root_.com.socrata.http.server.`routing-impl`.Extract.explicit($extractor, $lastP))")
       }
       val newTerm = q"val $pN = new _root_.com.socrata.http.server.routing.PathTree[_root_.scala.Predef.String, _root_.scala.collection.immutable.List[_root_.scala.Any]]($lit, $funcy, _root_.scala.collection.immutable.Map.empty)"
@@ -183,5 +183,5 @@ object PathTreeBuilderImpl {
 }
 
 object PathTreeBuilderAux {
-  val StandardRegex = ".*".r
+  val StandardRegex: String => Boolean = Function.const(true)
 }
