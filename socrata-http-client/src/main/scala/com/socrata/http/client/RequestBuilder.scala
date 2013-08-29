@@ -9,6 +9,13 @@ import java.net.{URL, URI, URISyntaxException}
 import java.nio.charset.{CharacterCodingException, StandardCharsets}
 import java.nio.ByteBuffer
 
+/**
+ * Conventions:
+ *  - Updaters which simply name the component ''replace'' any existing values.
+ *  - Updaters which are the first letter of the component are convenience variadic aliases that also ''replace'' any existing values.
+ *  - Updaters which are called `addX` ''augment'' any existing values with a single item.
+ *  - Updaters which are caleld `addXs` ''augment'' any existing values with a collection of items.
+ */
 class RequestBuilder private (val host: String,
                               val secure: Boolean,
                               val port: Int,
@@ -35,7 +42,11 @@ class RequestBuilder private (val host: String,
 
   def port(newPort: Int) = copy(port = newPort)
 
-  def path(newPath: Seq[String]) = copy(path = newPath)
+  def path(newPath: Iterable[String]) = copy(path = newPath)
+
+  def addPath(newPath: String) = copy(path = path.toVector :+ newPath)
+
+  def addPaths(newPath: Iterable[String]) = copy(path = path.toVector ++ newPath)
 
   def p(newPath: String*) = copy(path = newPath)
 
@@ -45,7 +56,11 @@ class RequestBuilder private (val host: String,
   /** Sets the query parameters for this request.  Equivalent to `query(Seq(...))`. */
   def q(newQuery: (String, String)*) = query(newQuery)
 
+  /** Adds a query parameter to this request. */
   def addParameter(parameter: (String, String)) = copy(query = query.toVector :+ parameter)
+
+  /** Adds query parameters to this request. */
+  def addParameters(parameters: Iterable[(String, String)]) = copy(query = query.toVector ++ parameters)
 
   /** Sets the headers for this request.
     *
