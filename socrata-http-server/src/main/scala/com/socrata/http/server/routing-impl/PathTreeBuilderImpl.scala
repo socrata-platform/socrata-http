@@ -20,10 +20,8 @@ object PathTreeBuilderImpl {
     val qualName = rep1sep(identifier, dot) ^^ { xs => xs.mkString(".") }
     val classNamePattern = ("{" ~>  qualName <~ "}(?=/|$)".r) ||| ("\\?(?=/|$)".r ^^^ "_root_.scala.Predef.String")
     val classNameWithExtPattern = "{{" ~> qualName ~ opt("[:!]".r ~ opt(qualName)) <~ "}}(?=/|$)".r ^^ {
-      case cn ~ Some(":" ~ Some(rn)) => (cn, rn, false)
-      case cn ~ Some(":" ~ None) => (cn, standardRegexName, false)
-      case cn ~ Some("!" ~ Some(rn)) => (cn, rn, true)
-      case cn ~ Some("!" ~ None) => (cn, standardRegexName, true)
+      case cn ~ Some(":" ~ rn) => (cn, rn.getOrElse(standardRegexName), false)
+      case cn ~ Some("!" ~ rn) => (cn, rn.getOrElse(standardRegexName), true)
       case cn ~ None => (cn, standardRegexName, false)
     }
     // "any single character that is not { or / or * or ?, or a character that is not { or / followed by one or more characters that are not /, or no characters, all followed by end of component"
