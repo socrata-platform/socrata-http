@@ -36,4 +36,43 @@ class PathTreeBuilderTest extends FunSuite with MustMatchers {
     pt(List("a","b")) must equal (None)
     pt(List("a","","b")) must equal (Some("ab"))
   }
+
+  test("optionally typed component -- default regex") {
+    val pt = PathTreeBuilder[OptionallyTypedPathComponent[String]](1, "/{{String}}")(identity[OptionallyTypedPathComponent[String]] _)
+    pt(List("a")) must equal (Some(OptionallyTypedPathComponent("a", None)))
+    pt(List("a.txt")) must equal (Some(OptionallyTypedPathComponent("a", Some("txt"))))
+    pt(List("a.")) must equal (Some(OptionallyTypedPathComponent("a", Some(""))))
+  }
+
+  test("explicitly optionally typed component -- default regex") {
+    val pt = PathTreeBuilder[OptionallyTypedPathComponent[String]](1, "/{{String:}}")(identity[OptionallyTypedPathComponent[String]] _)
+    pt(List("a")) must equal (Some(OptionallyTypedPathComponent("a", None)))
+    pt(List("a.txt")) must equal (Some(OptionallyTypedPathComponent("a", Some("txt"))))
+    pt(List("a.")) must equal (Some(OptionallyTypedPathComponent("a", Some(""))))
+  }
+
+  test("optionally typed component -- named regex") {
+    val r = "[a-z]+".r
+    val pt = PathTreeBuilder[OptionallyTypedPathComponent[String]](1, "/{{String:r}}")(identity[OptionallyTypedPathComponent[String]] _)
+    pt(List("a")) must equal (Some(OptionallyTypedPathComponent("a", None)))
+    pt(List("a.txt")) must equal (Some(OptionallyTypedPathComponent("a", Some("txt"))))
+    pt(List("a.")) must equal (None)
+    pt(List("a.7")) must equal (None)
+  }
+
+  test("typed component -- default regex") {
+    val pt = PathTreeBuilder[TypedPathComponent[String]](1, "/{{String!}}")(identity[TypedPathComponent[String]] _)
+    pt(List("a")) must equal (None)
+    pt(List("a.txt")) must equal (Some(TypedPathComponent("a", "txt")))
+    pt(List("a.")) must equal (Some(TypedPathComponent("a", "")))
+  }
+
+  test("typed component -- named regex") {
+    val r = "[a-z]+".r
+    val pt = PathTreeBuilder[TypedPathComponent[String]](1, "/{{String!r}}")(identity[TypedPathComponent[String]] _)
+    pt(List("a")) must equal (None)
+    pt(List("a.txt")) must equal (Some(TypedPathComponent("a", "txt")))
+    pt(List("a.")) must equal (None)
+    pt(List("a.7")) must equal (None)
+  }
 }

@@ -8,18 +8,29 @@ import com.socrata.http.server.routing.PathTree
 object PathTreeBuilderImpl {
   sealed abstract class ComponentType
   case class PathInstance(className: String) extends ComponentType
+  case class PathTypedInstance(className: String, regexIdentifier: String, extRequired: Boolean) extends ComponentType
   case class PathLiteral(value: String) extends ComponentType
 
+  val standardRegexName = "_root_.com.socrata.http.server.`routing-impl`.PathTreeBuilderAux.StandardRegex"
+
   class Parser extends RegexParsers {
-    val classNameComponent = "[a-zA-Z0-9_]+".r
+    val identifier = "[a-zA-Z0-9_]+".r
     val dot = "."
     // "(?=/|$)" == "lookahead for slash or end of input"
-    val className = "{" ~> rep1sep(classNameComponent, dot) <~ "}(?=/|$)".r ^^ { xs => xs.mkString(".") }
+    val qualName = rep1sep(identifier, dot) ^^ { xs => xs.mkString(".") }
+    val classNamePattern = "{" ~>  qualName <~ "}(?=/|$)".r
+    val classNameWithExtPattern = "{{" ~> qualName ~ opt("[:!]".r ~ opt(qualName)) <~ "}}(?=/|$)".r ^^ {
+      case cn ~ Some(":" ~ Some(rn)) => (cn, rn, false)
+      case cn ~ Some(":" ~ None) => (cn, standardRegexName, false)
+      case cn ~ Some("!" ~ Some(rn)) => (cn, rn, true)
+      case cn ~ Some("!" ~ None) => (cn, standardRegexName, true)
+      case cn ~ None => (cn, standardRegexName, false)
+    }
     // "any single character that is not { or / or *, or a character that is not { or / followed by one or more characters that are not /, or no characters, all followed by end of component"
     val lit = "(?:[^{/*]|[^{/][^/]+|)(?=/|$)".r
     val slash = "/"
     val star = "\\*(?=/|$)".r
-    val dir = slash ~> ((lit ^^ PathLiteral) ||| (className ^^ PathInstance))
+    val dir = slash ~> ((lit ^^ PathLiteral) ||| (classNamePattern ^^ PathInstance) ||| (classNameWithExtPattern ^^ PathTypedInstance.tupled))
     val path1 = rep1(dir) ~ opt(slash ~ star) ^^ { case a ~ b => (a, b.isDefined) }
     val path0 = slash ~ star ^^ { case a ~ b => (Nil, true) }
     val path = path0 ||| path1
@@ -93,8 +104,15 @@ object PathTreeBuilderImpl {
       rhs
     }
 
+    def termFromName(s: String) = {
+      val ValDef(_, _, _, rhs) = c.parse("val x = " + s)
+      rhs
+    }
+
     val types = pathElements.collect {
       case PathInstance(className) => typeFromName(className)
+      case PathTypedInstance(className, _, true) => tq"_root_.com.socrata.http.server.routing.TypedPathComponent[${typeFromName(className)}]"
+      case PathTypedInstance(className, _, false) => tq"_root_.com.socrata.http.server.routing.OptionallyTypedPathComponent[${typeFromName(className)}]"
     } ++ (if(hasStar) List(tq"_root_.scala.collection.immutable.LinearSeq[_root_.scala.Predef.String]") else Nil)
 
     val uTree = TypeTree(weakTypeOf[U])
@@ -141,6 +159,13 @@ object PathTreeBuilderImpl {
         case PathInstance(className) =>
           val cls = typeFromName(className)
           (q"_root_.scala.collection.immutable.Map.empty", q"_root_.scala.collection.immutable.List(_root_.com.socrata.http.server.`routing-impl`.Extract[$cls]($lastP))")
+        case PathTypedInstance(className, regexName, required) =>
+          val cls = typeFromName(className)
+          val re = termFromName(regexName)
+          val extractor =
+            if(required) q"_root_.com.socrata.http.server.`routing-impl`.Extract.typedExtractor[$cls]($re)"
+            else q"_root_.com.socrata.http.server.`routing-impl`.Extract.optionallyTypedExtractor[$cls]($re)"
+          (q"_root_.scala.collection.immutable.Map.empty", q"_root_.scala.collection.immutable.List(_root_.com.socrata.http.server.`routing-impl`.Extract.explicit($extractor, $lastP))")
       }
       val newTerm = q"val $pN = new _root_.com.socrata.http.server.routing.PathTree[_root_.scala.Predef.String, _root_.scala.collection.immutable.List[_root_.scala.Any]]($lit, $funcy, _root_.scala.collection.immutable.Map.empty)"
       (pN, newTerm :: termsSoFar)
@@ -157,4 +182,8 @@ object PathTreeBuilderImpl {
 
     c.Expr[PathTree[String, U]](result)
   }
+}
+
+object PathTreeBuilderAux {
+  val StandardRegex = ".*".r
 }
