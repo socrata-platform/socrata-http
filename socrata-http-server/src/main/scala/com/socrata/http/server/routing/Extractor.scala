@@ -1,7 +1,18 @@
 package com.socrata.http.server.routing
 
-trait Extractor[T] {
+trait Matcher {
+  def matches(s: String): Boolean
+}
+
+object Matcher {
+  class StringMatcher(val target: String) extends Matcher {
+    def matches(s: String) = s == target
+  }
+}
+
+trait Extractor[+T] extends Matcher {
   def extract(s: String): Option[T]
+  def matches(s: String) = extract(s).isDefined
 }
 
 object Extractor {
