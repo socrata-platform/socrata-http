@@ -15,60 +15,90 @@ sealed trait PathTree2[+R] {
   def merge[R2 >: R](that: PathTree2[R2]): PathTree2[R2]
 
   def accept(path: List[String]): Option[(List[Any], R)] = {
-    case class State(builtSoFarRev: List[Any], nextState: PathTree2[R])
-    var states = List(State(Nil, this))
-    var fixedAccept: Option[(List[Any], R)] = acceptFix.flatMap { case value =>
-      if(path.isEmpty) Some((Nil, value)) else None
-    }
-    var flexAccept: Option[(List[Any], R)] = acceptFlex.flatMap { case value =>
-      if(path.nonEmpty) Some((path.tail :: Nil, value)) else None
-    }
+    class Acceptor {
+      private[this] class State(val builtSoFarRev: List[Any], val nextState: PathTree2[R])
 
-    def finish(result: Option[(List[Any], R)]) = result match {
-      case Some(x) => Some((x._1.reverse, x._2))
-      case None => None
-    }
-
-    def updateAccepts(remainingPath: List[String], states: Seq[State]) {
-      // Ok, this is a LITTLE weird.  Basically, we can be in more than one state at once
-      // and we need to keep track of the rightmost flex match as well as the rightmost
-      // fixed match that hasn't been superceded by a more-rightward flex match.  Basically,
-      // what we're implementing here is "rightmost match wins" but we also need to keep
-      // the last flex match around in case we need to loop.
-      var nextFixed: Option[(List[Any], R)] = None
-      var nextFlex: Option[(List[Any], R)] = flexAccept
-      states.foreach { s =>
-        s.nextState.acceptFlex.foreach { case v =>
-          if(remainingPath.nonEmpty) { nextFixed = None; nextFlex = Some((remainingPath :: s.builtSoFarRev, v)) }
+      private[this] var fixedAccept: (List[Any], R) =
+        acceptFix match {
+          case Some(value) =>
+            if(path.isEmpty) (Nil, value) else null
+          case None =>
+            null
         }
-        s.nextState.acceptFix.foreach { case v =>
-          if(remainingPath.isEmpty) nextFixed = Some((s.builtSoFarRev, v))
+      private[this] var flexAccept: (List[Any], R) =
+        acceptFlex match {
+          case Some(value) =>
+            if(path.nonEmpty) (path.tail :: Nil, value) else null
+          case None =>
+            null
         }
-      }
-      fixedAccept = nextFixed
-      flexAccept = nextFlex
-    }
 
-    var remainingPath = path
-    while(remainingPath.nonEmpty && states.nonEmpty) {
-      val pathComponent = remainingPath.head
-      val nextStates = new ListBuffer[State]
-      for(s <- states) {
-        for(result <- s.nextState.check(pathComponent)) {
-          result match {
-            case ExtractResult(value, child) => nextStates += State(value :: s.builtSoFarRev, child)
-            case MatchResult(child) => nextStates += State(s.builtSoFarRev, child)
+      def finish(result: (List[Any], R)) =
+        if(result eq null) None
+        else Some((result._1.reverse, result._2))
+
+      def updateAccepts(remainingPath: List[String], states: List[State]) {
+        // Ok, this is a LITTLE weird.  Basically, we can be in more than one state at once
+        // and we need to keep track of the rightmost flex match as well as the rightmost
+        // fixed match that hasn't been superceded by a more-rightward flex match.  Basically,
+        // what we're implementing here is "rightmost match wins" but we also need to keep
+        // the last flex match around in case we need to loop.
+        var nextFixed: (List[Any], R) = null
+        var nextFlex: (List[Any], R) = flexAccept
+
+        var ss = states
+        while(ss.nonEmpty) {
+          val s = ss.head
+          s.nextState.acceptFlex match {
+            case Some(v) =>
+              if(remainingPath.nonEmpty) {
+                nextFixed = null
+                nextFlex = (remainingPath :: s.builtSoFarRev, v)
+              }
+            case _ => // none
           }
+          s.nextState.acceptFix match {
+            case Some(v) =>
+              if(remainingPath.isEmpty) nextFixed = (s.builtSoFarRev, v)
+            case _ => // none
+          }
+          ss = ss.tail
         }
+        fixedAccept = nextFixed
+        flexAccept = nextFlex
       }
-      updateAccepts(remainingPath, states)
-      states = nextStates.toList
-      remainingPath = remainingPath.tail
+
+      def go(path: List[String]) = {
+        var states = List(new State(Nil, PathTree2.this))
+        var remainingPath = path
+
+        while(remainingPath.nonEmpty && states.nonEmpty) {
+          val pathComponent = remainingPath.head
+          val nextStates = new ListBuffer[State]
+          var ss = states
+          while(ss.nonEmpty) {
+            val s = ss.head
+            ss = ss.tail
+
+            for(result <- s.nextState.check(pathComponent)) {
+              val newState = result match {
+                case ExtractResult(value, child) => new State(value :: s.builtSoFarRev, child)
+                case MatchResult(child) => new State(s.builtSoFarRev, child)
+              }
+              nextStates += newState
+            }
+          }
+          updateAccepts(remainingPath, states)
+          states = nextStates.toList
+          remainingPath = remainingPath.tail
+        }
+
+        updateAccepts(remainingPath, states)
+
+        finish(if(fixedAccept eq null) flexAccept else fixedAccept)
+      }
     }
-
-    updateAccepts(remainingPath, states)
-
-    finish(fixedAccept orElse flexAccept)
+    new Acceptor().go(path)
   }
 }
 
@@ -103,7 +133,6 @@ object PathTree2 {
   sealed abstract class Result[+R]
   final case class ExtractResult[+R](value: Any, child: PathTree2[R]) extends Result[R]
   final case class MatchResult[+R](children: PathTree2[R]) extends Result[R]
-  final case class Acceptance[+R](value: R, flexible: Boolean)
 }
 
 final case class LiteralOnlyPathTree2[+R](branches: Map[String, PathTree2[R]], acceptFix: Option[R], acceptFlex: Option[R]) extends PathTree2[R] {
