@@ -9,7 +9,8 @@ sealed trait PathTree2[+R] {
   def acceptFix: Option[R]
   def acceptFlex: Option[R]
 
-  def apply[U](path: List[String])(implicit ev: R <:< (List[Any] => U)): Option[U] = accept(path).map { case (args, f) => f(args) }
+  def apply[U](path: List[String])(implicit ev: R <:< (List[Any] => U)): Option[U] =
+    accept(path).map { case (args, f) => f(args) }
 
   def merge[R2 >: R](that: PathTree2[R2]): PathTree2[R2]
 
