@@ -7,14 +7,6 @@ import scala.Some
 import com.socrata.http.server.routing.OptionallyTypedPathComponent
 
 object Extract {
-  def apply[T : Extractor](p: PathTree[String, List[Any]]): String => Option[PathTree[String, List[Any]]] =
-    explicit(Extractor[T], p)
-
-  def explicit[T](extractor: Extractor[T], p: PathTree[String, List[Any]]): String => Option[PathTree[String, List[Any]]] =
-    new AbstractFunction1[String, Option[PathTree[String, List[Any]]]] {
-      def apply(s: String) = extractor.extract(s).map { r => p.map(r :: _) }
-    }
-
   class TypedPathComponentExtractor[T](val extMatcher: String => Boolean)(implicit val extractor: Extractor[T]) extends Extractor[TypedPathComponent[T]] {
     def extract(s: String): Option[TypedPathComponent[T]] = {
       val lastDot = s.lastIndexOf('.')
