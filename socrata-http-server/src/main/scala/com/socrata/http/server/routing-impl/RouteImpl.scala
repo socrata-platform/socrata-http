@@ -2,22 +2,22 @@ package com.socrata.http.server.`routing-impl`
 
 import scala.language.experimental.macros
 import scala.reflect.macros.Context
-import com.socrata.http.server.routing.PathTree2
+import com.socrata.http.server.routing.PathTree
 import javax.servlet.http.HttpServletRequest
 import com.socrata.http.server.routing.IsHttpService
 
 object RouteImpl {
-  def route[From : c.WeakTypeTag, To : c.WeakTypeTag](c: Context)(pathSpec: c.Expr[String], targetObject: c.Expr[Any]): c.Expr[PathTree2[List[String] => From => To]] = {
+  def route[From : c.WeakTypeTag, To : c.WeakTypeTag](c: Context)(pathSpec: c.Expr[String], targetObject: c.Expr[Any]): c.Expr[PathTree[List[String] => From => To]] = {
     import c.universe._
 
     val fromTree = TypeTree(weakTypeOf[From])
     val toTree = TypeTree(weakTypeOf[To])
 
     val tree = q"_root_.com.socrata.http.server.routing.PathTreeBuilder[$fromTree => $toTree]($pathSpec)($targetObject)"
-    c.Expr[PathTree2[List[String] => From => To]](tree)
+    c.Expr[PathTree[List[String] => From => To]](tree)
   }
 
-  def dir[From : c.WeakTypeTag, To: c.WeakTypeTag](c: Context)(pathSpec: c.Expr[String])(ihs: c.Expr[IsHttpService[From => To]]): c.Expr[PathTree2[List[String] => From => To]] = {
+  def dir[From : c.WeakTypeTag, To: c.WeakTypeTag](c: Context)(pathSpec: c.Expr[String])(ihs: c.Expr[IsHttpService[From => To]]): c.Expr[PathTree[List[String] => From => To]] = {
     import c.universe._
 
     val (pathComponents, hasStar) = PathTreeBuilderImpl.parsePathInfo(c)(pathSpec)
@@ -61,7 +61,7 @@ object RouteImpl {
   _root_.com.socrata.http.server.routing.PathTreeBuilder[$fromTree => $toTree]($pathSpec)($fTree)
 }"""
 
-    c.Expr[PathTree2[List[String] => From => To]](tree)
+    c.Expr[PathTree[List[String] => From => To]](tree)
   }
 
   val redirect = { (req: HttpServletRequest) =>

@@ -3,7 +3,7 @@ package com.socrata.http.server.`routing-impl`
 import scala.language.experimental.macros
 import scala.reflect.macros.Context
 import scala.util.parsing.combinator.RegexParsers
-import com.socrata.http.server.routing.PathTree2
+import com.socrata.http.server.routing.PathTree
 
 object PathTreeBuilderImpl {
   sealed abstract class ComponentType
@@ -52,7 +52,7 @@ object PathTreeBuilderImpl {
   }
 
   // "(/([^/]*)|{ClassName})+"
-  def impl[U: c.WeakTypeTag](c: Context)(pathSpec: c.Expr[String])(targetObject: c.Expr[Any]): c.Expr[PathTree2[List[String] => U]] = {
+  def impl[U: c.WeakTypeTag](c: Context)(pathSpec: c.Expr[String])(targetObject: c.Expr[Any]): c.Expr[PathTree[List[String] => U]] = {
     import c.universe._
 
     val (pathElements, hasStar) = parsePathInfo(c)(pathSpec)
@@ -63,12 +63,12 @@ object PathTreeBuilderImpl {
     //   locally {
     //     val f: (String, Int) => U = { (s: String, i: Int) => BLAH }
     //     val typeify: List[Any] => U = { ss => f(ss(0).asInstanceOf[String], ss(1).asInstanceOf[Int]) }
-    //     val terminus = PathTree2.fixRoot(p)
-    //     val p1 = new LiteralOnlyPathTree2(Map("c" -> terminus), None)
-    //     val p2 = new MatchingPathTree2(List(Extractor[Int] -> p1), None)
-    //     val p3 = new MatchingPathTree2(List(Extractor[String] -> p2), None)
-    //     val p4 = new LiteralOnlyPathTree2(Map("b" -> p3), None)
-    //     val p5 = new LiteralOnlyPathTree2(Map("a" -> p4), None)
+    //     val terminus = PathTree.fixRoot(p)
+    //     val p1 = new LiteralOnlyPathTree(Map("c" -> terminus), None)
+    //     val p2 = new MatchingPathTree(List(Extractor[Int] -> p1), None)
+    //     val p3 = new MatchingPathTree(List(Extractor[String] -> p2), None)
+    //     val p4 = new LiteralOnlyPathTree(Map("b" -> p3), None)
+    //     val p5 = new LiteralOnlyPathTree(Map("a" -> p4), None)
     //     p5
     //   }
     //
@@ -78,12 +78,12 @@ object PathTreeBuilderImpl {
     //   locally {
     //     val f: (String, Int, List[String]) => U = { (s: String, i: Int, xs: LinearSeq[String]) => BLAH }
     //     val typeify: List[Any] => U = { ss => f(ss(0).asInstanceOf[String], ss(1).asInstanceOf[Int], ss(2).asInstanceOf[List[String]]) }
-    //     val terminus = PathTree2.flexRoot(p)
-    //     val p1 = new LiteralOnlyPathTree2(Map("c" -> terminus), None)
-    //     val p2 = new MatchingPathTree2(List(Extractor[Int] -> p1), None)
-    //     val p3 = new MatchingPathTree2(List(Extractor[String] -> p2), None)
-    //     val p4 = new LiteralOnlyPathTree2(Map("b" -> p3), None)
-    //     val p5 = new LiteralOnlyPathTree2(Map("a" -> p4), None)
+    //     val terminus = PathTree.flexRoot(p)
+    //     val p1 = new LiteralOnlyPathTree(Map("c" -> terminus), None)
+    //     val p2 = new MatchingPathTree(List(Extractor[Int] -> p1), None)
+    //     val p3 = new MatchingPathTree(List(Extractor[String] -> p2), None)
+    //     val p4 = new LiteralOnlyPathTree(Map("b" -> p3), None)
+    //     val p5 = new LiteralOnlyPathTree(Map("a" -> p4), None)
     //     p5
     //   }
     //
@@ -133,9 +133,9 @@ object PathTreeBuilderImpl {
 
     val terminus = newTermName(c.fresh("terminus"))
     val terminusTree = if(hasStar) {
-      q"val $terminus = _root_.com.socrata.http.server.routing.PathTree2.flexRoot($typeifyName)"
+      q"val $terminus = _root_.com.socrata.http.server.routing.PathTree.flexRoot($typeifyName)"
     } else {
-      q"val $terminus = _root_.com.socrata.http.server.routing.PathTree2.fixRoot($typeifyName)"
+      q"val $terminus = _root_.com.socrata.http.server.routing.PathTree.fixRoot($typeifyName)"
     }
 
     val (lastP, pRev) = pathElements.foldRight((terminus, List.empty[Tree])) { (pathElement, acc) =>
@@ -143,17 +143,17 @@ object PathTreeBuilderImpl {
       val pN = newTermName(c.fresh("p"))
       val pExpr = pathElement match {
         case PathLiteral(literal) =>
-          q"new _root_.com.socrata.http.server.routing.LiteralOnlyPathTree2(_root_.scala.collection.immutable.Map($literal -> $lastP), _root_.scala.None, _root_.scala.None)"
+          q"new _root_.com.socrata.http.server.routing.LiteralOnlyPathTree(_root_.scala.collection.immutable.Map($literal -> $lastP), _root_.scala.None, _root_.scala.None)"
         case PathInstance(className) =>
           val cls = typeFromName(className)
-          q"new _root_.com.socrata.http.server.routing.MatchingPathTree2(_root_.scala.collection.immutable.List((_root_.com.socrata.http.server.routing.Extractor[$cls], $lastP)), _root_.scala.None, _root_.scala.None)"
+          q"new _root_.com.socrata.http.server.routing.MatchingPathTree(_root_.scala.collection.immutable.List((_root_.com.socrata.http.server.routing.Extractor[$cls], $lastP)), _root_.scala.None, _root_.scala.None)"
         case PathTypedInstance(className, matcherName, required) =>
           val cls = typeFromName(className)
           val matcher = termFromName(matcherName)
           val extractor =
             if(required) q"_root_.com.socrata.http.server.`routing-impl`.Extract.typedExtractor[$cls]($matcher)"
             else q"_root_.com.socrata.http.server.`routing-impl`.Extract.optionallyTypedExtractor[$cls]($matcher)"
-          q"new _root_.com.socrata.http.server.routing.MatchingPathTree2(_root_.scala.collection.immutable.List(($extractor, $lastP)), _root_.scala.None, _root_.scala.None)"
+          q"new _root_.com.socrata.http.server.routing.MatchingPathTree(_root_.scala.collection.immutable.List(($extractor, $lastP)), _root_.scala.None, _root_.scala.None)"
       }
       val newTerm = q"val $pN = $pExpr"
       (pN, newTerm :: termsSoFar)
@@ -167,7 +167,7 @@ object PathTreeBuilderImpl {
       $lastP
     }"""
 
-    c.Expr[PathTree2[List[String] => U]](result)
+    c.Expr[PathTree[List[String] => U]](result)
   }
 }
 

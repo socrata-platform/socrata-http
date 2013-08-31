@@ -1,10 +1,10 @@
 package com.socrata.http.server.routing
 
-import PathTree2._
+import PathTree._
 import scala.collection.mutable.ListBuffer
 import com.socrata.http.server.routing.Matcher.StringMatcher
 
-sealed trait PathTree2[+R] {
+sealed trait PathTree[+R] {
   def check(pathComponent: String): Vector[Result[R]]
   def acceptFix: Option[R]
   def acceptFlex: Option[R]
@@ -12,11 +12,11 @@ sealed trait PathTree2[+R] {
   def apply[U](path: List[String])(implicit ev: R <:< (List[Any] => U)): Option[U] =
     accept(path).map { case (args, f) => f(args) }
 
-  def merge[R2 >: R](that: PathTree2[R2]): PathTree2[R2]
+  def merge[R2 >: R](that: PathTree[R2]): PathTree[R2]
 
   def accept(path: List[String]): Option[(List[Any], R)] = {
     class Acceptor {
-      private[this] class State(val builtSoFarRev: List[Any], val nextState: PathTree2[R])
+      private[this] class State(val builtSoFarRev: List[Any], val nextState: PathTree[R])
 
       private[this] var fixedAccept: (List[Any], R) =
         acceptFix match {
@@ -69,7 +69,7 @@ sealed trait PathTree2[+R] {
       }
 
       def go(path: List[String]) = {
-        var states = List(new State(Nil, PathTree2.this))
+        var states = List(new State(Nil, PathTree.this))
         var remainingPath = path
 
         while(remainingPath.nonEmpty && states.nonEmpty) {
@@ -114,53 +114,53 @@ object MatcherLike {
   }
 }
 
-object PathTree2 {
+object PathTree {
   def apply[R, M](elems: Seq[M], result: R, flex: Boolean)(implicit ev: MatcherLike[M]) = {
-    val root: PathTree2[R] = new LiteralOnlyPathTree2(Map.empty, if(flex) None else Some(result), if(flex) Some(result) else None)
+    val root: PathTree[R] = new LiteralOnlyPathTree(Map.empty, if(flex) None else Some(result), if(flex) Some(result) else None)
     elems.foldRight(root) { (elem, child) =>
       ev.matcher(elem) match {
-        case s: StringMatcher => new LiteralOnlyPathTree2(Map(s.target -> child), None, None)
-        case other => new MatchingPathTree2(List(other -> child), None, None)
+        case s: StringMatcher => new LiteralOnlyPathTree(Map(s.target -> child), None, None)
+        case other => new MatchingPathTree(List(other -> child), None, None)
       }
     }
   }
 
-  def fixRoot[R](result: R) = new LiteralOnlyPathTree2(Map.empty, Some(result), None)
-  def flexRoot[R](result: R) = new LiteralOnlyPathTree2(Map.empty, None, Some(result))
+  def fixRoot[R](result: R) = new LiteralOnlyPathTree(Map.empty, Some(result), None)
+  def flexRoot[R](result: R) = new LiteralOnlyPathTree(Map.empty, None, Some(result))
 
-  val empty: PathTree2[Nothing] = new LiteralOnlyPathTree2(Map.empty, None, None)
+  val empty: PathTree[Nothing] = new LiteralOnlyPathTree(Map.empty, None, None)
 
   sealed abstract class Result[+R]
-  final case class ExtractResult[+R](value: Any, child: PathTree2[R]) extends Result[R]
-  final case class MatchResult[+R](children: PathTree2[R]) extends Result[R]
+  final case class ExtractResult[+R](value: Any, child: PathTree[R]) extends Result[R]
+  final case class MatchResult[+R](children: PathTree[R]) extends Result[R]
 }
 
-final case class LiteralOnlyPathTree2[+R](branches: Map[String, PathTree2[R]], acceptFix: Option[R], acceptFlex: Option[R]) extends PathTree2[R] {
+final case class LiteralOnlyPathTree[+R](branches: Map[String, PathTree[R]], acceptFix: Option[R], acceptFlex: Option[R]) extends PathTree[R] {
   def check(pathComponent: String): Vector[Result[R]] =
     branches.get(pathComponent) match {
       case None => Vector.empty
       case Some(child) => Vector.empty :+ MatchResult(child)
     }
 
-  def merge[R2 >: R](that: PathTree2[R2]): PathTree2[R2] = that match {
-    case lo: LiteralOnlyPathTree2[R2] =>
-      var b: Map[String, PathTree2[R2]] = branches
+  def merge[R2 >: R](that: PathTree[R2]): PathTree[R2] = that match {
+    case lo: LiteralOnlyPathTree[R2] =>
+      var b: Map[String, PathTree[R2]] = branches
       for(kp@(k, p2) <- lo.branches) {
         branches.get(k) match {
           case Some(p1) => b += (k -> p1.merge(p2))
           case None => b += kp
         }
       }
-      new LiteralOnlyPathTree2(b, that.acceptFix orElse this.acceptFix, that.acceptFlex orElse this.acceptFlex)
-    case mp: MatchingPathTree2[R2] =>
+      new LiteralOnlyPathTree(b, that.acceptFix orElse this.acceptFix, that.acceptFlex orElse this.acceptFlex)
+    case mp: MatchingPathTree[R2] =>
       toMatchingPathTree.merge(that)
   }
 
   def toMatchingPathTree =
-    new MatchingPathTree2[R](branches.iterator.map { case (k,v) => (new Matcher.StringMatcher(k), v) }.toList, acceptFix, acceptFlex)
+    new MatchingPathTree[R](branches.iterator.map { case (k,v) => (new Matcher.StringMatcher(k), v) }.toList, acceptFix, acceptFlex)
 }
 
-final case class MatchingPathTree2[+R](branches: List[(Matcher, PathTree2[R])], acceptFix: Option[R], acceptFlex: Option[R]) extends PathTree2[R] {
+final case class MatchingPathTree[+R](branches: List[(Matcher, PathTree[R])], acceptFix: Option[R], acceptFlex: Option[R]) extends PathTree[R] {
   def check(pathComponent: String): Vector[Result[R]] = {
     val result = Vector.newBuilder[Result[R]]
     for((m, child) <- branches) {
@@ -179,14 +179,14 @@ final case class MatchingPathTree2[+R](branches: List[(Matcher, PathTree2[R])], 
     result.result()
   }
 
-  def merge[R2 >: R](that: PathTree2[R2]): PathTree2[R2] = that match {
-    case mp: MatchingPathTree2[R2] =>
+  def merge[R2 >: R](that: PathTree[R2]): PathTree[R2] = that match {
+    case mp: MatchingPathTree[R2] =>
       trueMerge(mp)
-    case lo: LiteralOnlyPathTree2[R2] =>
+    case lo: LiteralOnlyPathTree[R2] =>
       trueMerge(lo.toMatchingPathTree)
   }
 
-  private def trueMerge[R2 >: R](that: MatchingPathTree2[R2]): PathTree2[R2] = {
+  private def trueMerge[R2 >: R](that: MatchingPathTree[R2]): PathTree[R2] = {
     val newBranches =
       if(this.branches.nonEmpty && that.branches.nonEmpty) {
         val thisLast = this.branches.last
@@ -200,6 +200,6 @@ final case class MatchingPathTree2[+R](branches: List[(Matcher, PathTree2[R])], 
       } else {
         this.branches ::: that.branches
       }
-    new MatchingPathTree2[R2](newBranches, that.acceptFix orElse this.acceptFix, that.acceptFlex orElse this.acceptFlex)
+    new MatchingPathTree[R2](newBranches, that.acceptFix orElse this.acceptFix, that.acceptFlex orElse this.acceptFlex)
   }
 }
