@@ -5,8 +5,21 @@ import org.scalatest.matchers.MustMatchers
 import scala.collection.LinearSeq
 
 class PathTreeBuilderTest extends FunSuite with MustMatchers {
-  test("No patterns") {
+  // It would be nice to just make sure that the builders produce the correct pathtrees.
+  // Unfortunately, they introduce an anonymous function to do the typecasting from the
+  // List[Any] that the pathtree produces to the types that the functions expect, so
+  // we can't just use == to compare automatically and manually built trees.  Thus,
+  // check the behavior instead.
+
+  test("No patterns -- deprecated flexmatch marker") {
     val pt = PathTreeBuilder[String]("/a/b") { "fix" } merge PathTreeBuilder[String]("/a/b/*") { xs:LinearSeq[String] => ("flex" +: xs).mkString(",") }
+    pt(List("a", "b")) must equal (Some("fix"))
+    pt(List("a", "b", "c")) must equal (Some("flex,c"))
+    pt(List("q", "w")) must equal (None)
+  }
+
+  test("No patterns") {
+    val pt = PathTreeBuilder[String]("/a/b") { "fix" } merge PathTreeBuilder[String]("/a/b/+") { xs:LinearSeq[String] => ("flex" +: xs).mkString(",") }
     pt(List("a", "b")) must equal (Some("fix"))
     pt(List("a", "b", "c")) must equal (Some("flex,c"))
     pt(List("q", "w")) must equal (None)
@@ -32,8 +45,15 @@ class PathTreeBuilderTest extends FunSuite with MustMatchers {
     pt(List("")) must equal (Some("x"))
   }
 
-  test("initial flexmatch") {
+  test("initial flexmatch -- deprecated marker") {
     val pt = PathTreeBuilder[Seq[String]]("/*")(identity[Seq[String]] _)
+    pt(List("q", "w")) must equal (Some(List("q","w")))
+    pt(List("")) must equal (Some(List("")))
+    pt(Nil) must equal (None)
+  }
+
+  test("initial flexmatch") {
+    val pt = PathTreeBuilder[Seq[String]]("/+")(identity[Seq[String]] _)
     pt(List("q", "w")) must equal (Some(List("q","w")))
     pt(List("")) must equal (Some(List("")))
     pt(Nil) must equal (None)

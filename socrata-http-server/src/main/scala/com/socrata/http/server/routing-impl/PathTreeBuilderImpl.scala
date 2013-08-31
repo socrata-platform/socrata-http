@@ -13,6 +13,11 @@ object PathTreeBuilderImpl {
 
   val standardRegexName = "_root_.com.socrata.http.server.`routing-impl`.PathTreeBuilderAux.StandardRegex"
 
+  sealed abstract class FlexMarker
+  case object NoFlexMarker
+  case object FlexMarker
+  case object DeprecatedFlexMarker
+
   class Parser extends RegexParsers {
     val identifier = "[a-zA-Z0-9_]+".r
     val dot = "."
@@ -24,13 +29,16 @@ object PathTreeBuilderImpl {
       case cn ~ Some("!" ~ rn) => (cn, rn.getOrElse(standardRegexName), true)
       case cn ~ None => (cn, standardRegexName, false)
     }
-    // "any single character that is not { or / or * or ?, or a character that is not { or / followed by one or more characters that are not /, or no characters, all followed by end of component"
-    val lit = "(?:[^{/*?]|[^{/][^/]+|)(?=/|$)".r
+    // "any single character that is not { or / or * or + or ?, or a character that is not { or / followed by one or more characters that are not /, or no characters, all followed by end of component"
+    val lit = "(?:[^{/*+?]|[^{/][^/]+|)(?=/|$)".r
     val slash = "/"
-    val star = "\\*(?=/|$)".r
+    val flexMarker = "[+*](?=/|$)".r ^^ {
+      case "+" => FlexMarker
+      case "*" => DeprecatedFlexMarker
+    }
     val dir = slash ~> ((lit ^^ PathLiteral) ||| (classNamePattern ^^ PathInstance) ||| (classNameWithExtPattern ^^ PathTypedInstance.tupled))
-    val path1 = rep1(dir) ~ opt(slash ~ star) ^^ { case a ~ b => (a, b.isDefined) }
-    val path0 = slash ~ star ^^ { case a ~ b => (Nil, true) }
+    val path1 = rep1(dir) ~ opt(slash ~> flexMarker) ^^ { case a ~ b => (a, b.getOrElse(NoFlexMarker)) }
+    val path0 = slash ~> flexMarker ^^ { case b => (Nil, b) }
     val path = path0 ||| path1
   }
 
@@ -43,12 +51,14 @@ object PathTreeBuilderImpl {
     }
 
     val parser = new Parser
-    val (pathElements, hasStar) = parser.parseAll(parser.path, path) match {
+    val (pathElements, flexMarker) = parser.parseAll(parser.path, path) match {
       case parser.Success(elems, _) => elems
       case fail: parser.NoSuccess => c.abort(pathSpec.tree.pos, "Malformed pathspec: " + fail.msg)
     }
 
-    (pathElements, hasStar)
+    if(flexMarker == DeprecatedFlexMarker) c.warning(pathSpec.tree.pos, "`*' as a flex marker is deprecated; use `+' instead")
+
+    (pathElements, flexMarker != NoFlexMarker)
   }
 
   // "(/([^/]*)|{ClassName})+"

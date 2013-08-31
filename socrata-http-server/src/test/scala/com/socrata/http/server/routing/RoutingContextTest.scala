@@ -24,7 +24,7 @@ class RoutingContextTest extends FunSuite with MustMatchers {
     Route("/foo", noop)(List("bar")) must equal (None)
     Route("/foo", noop)(List("foo","bar")) must equal (None)
     Route("/a/{String}", (s: String) => noop)(List("a","b")) must equal (Some(null))
-    Route("/a/{String}/*", (s: String, xs: Seq[String]) => noop)(List("a","b","c")) must equal (Some(null))
+    Route("/a/{String}/+", (s: String, xs: Seq[String]) => noop)(List("a","b","c")) must equal (Some(null))
   }
 
   test("Wrapped service compiles") {
@@ -38,6 +38,6 @@ class RoutingContextTest extends FunSuite with MustMatchers {
     Route("/foo", noop)(List("bar")) must equal (None)
     Route("/foo", noop)(List("foo","bar")) must equal (None)
     Route("/a/{String}", (s: String) => noop)(List("a","b")) must equal (Some(null))
-    Route("/a/{String}/*", (s: String, xs: Seq[String]) => noop)(List("a","b","c")) must equal (Some(null))
+    Route("/a/{String}/+", (s: String, xs: Seq[String]) => noop)(List("a","b","c")) must equal (Some(null))
   }
 }
