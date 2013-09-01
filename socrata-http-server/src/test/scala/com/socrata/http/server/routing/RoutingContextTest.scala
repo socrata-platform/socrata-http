@@ -14,7 +14,6 @@ class RoutingContextTest extends FunSuite with MustMatchers {
     Directory("/foo")
     Directory("/foo/{String}")
     Directory("/foo/{String}/{String}")
-    // Directory("/foo/{String}/*")
   }
 
   test("Route compiles") {
@@ -39,5 +38,17 @@ class RoutingContextTest extends FunSuite with MustMatchers {
     Route("/foo", noop)(List("foo","bar")) must equal (None)
     Route("/a/{String}", (s: String) => noop)(List("a","b")) must equal (Some(null))
     Route("/a/{String}/+", (s: String, xs: Seq[String]) => noop)(List("a","b","c")) must equal (Some(null))
+  }
+
+  test("A bunch of routes compile") {
+    import SimpleRouteContext._
+    val one: HttpService = req => resp => ()
+    val two: HttpService = req => resp => ()
+    val rs = Routes(
+      Route("/foo", one),
+      Route("/bar", two)
+    )
+    rs(List("foo")) must equal (Some(one))
+    rs(List("bar")) must equal (Some(two))
   }
 }

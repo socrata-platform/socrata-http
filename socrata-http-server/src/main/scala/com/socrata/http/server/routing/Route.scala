@@ -45,13 +45,13 @@ object IsHttpService {
 class RouteContext[From, To] {
   type Service = com.socrata.http.server.Service[From, To]
 
-  def Routes(x: PathTree[List[String] => Service], xs: PathTree[List[String] => Service]*) =
+  def Routes(x: PathTree[List[Any] => Service], xs: PathTree[List[Any] => Service]*): PathTree[List[Any] => Service] =
     xs.foldLeft(x)(_ merge _)
 
-  def Route(pathSpec: String, targetObject: Any): PathTree[List[String] => Service] =
+  def Route(pathSpec: String, targetObject: Any): PathTree[List[Any] => Service] =
     macro RouteImpl.route[From, To]
 
-  def Directory(pathSpec: String)(implicit ihs: IsHttpService[Service]) =
+  def Directory(pathSpec: String)(implicit ihs: IsHttpService[Service]): PathTree[List[Any] => Service] =
     macro RouteImpl.dir[From, To]
 }
 

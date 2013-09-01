@@ -62,7 +62,7 @@ object PathTreeBuilderImpl {
   }
 
   // "(/([^/]*)|{ClassName})+"
-  def impl[U: c.WeakTypeTag](c: Context)(pathSpec: c.Expr[String])(targetObject: c.Expr[Any]): c.Expr[PathTree[List[String] => U]] = {
+  def impl[U: c.WeakTypeTag](c: Context)(pathSpec: c.Expr[String])(targetObject: c.Expr[Any]): c.Expr[PathTree[List[Any] => U]] = {
     import c.universe._
 
     val (pathElements, hasStar) = parsePathInfo(c)(pathSpec)
@@ -177,7 +177,7 @@ object PathTreeBuilderImpl {
       $lastP
     }"""
 
-    c.Expr[PathTree[List[String] => U]](result)
+    c.Expr[PathTree[List[Any] => U]](result)
   }
 }
 
