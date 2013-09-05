@@ -6,7 +6,7 @@ class AcknowledgeableInputStream(underlying: InputStream, limit: Long) extends I
   private var readSoFar: Long = 0L
 
   private def checkSize() {
-    if(readSoFar > limit || readSoFar < 0) throw new TooMuchDataWithoutAcknowledgement
+    if(readSoFar > limit || readSoFar < 0) throw new TooMuchDataWithoutAcknowledgement(limit)
   }
 
   def acknowledge() {

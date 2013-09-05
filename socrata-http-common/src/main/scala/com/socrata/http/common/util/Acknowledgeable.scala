@@ -6,4 +6,4 @@ trait Acknowledgeable {
   def acknowledge()
 }
 
-class TooMuchDataWithoutAcknowledgement extends IOException("Too much data without acknowledgement")
+class TooMuchDataWithoutAcknowledgement(val limit: Long) extends IOException("Too much data without acknowledgement")

@@ -6,7 +6,7 @@ class AcknowledgeableReader(underlying: Reader, limit: Long) extends Reader with
   private var readSoFar: Long = 0L
 
   private def checkSize() {
-    if(readSoFar > limit || readSoFar < 0) throw new TooMuchDataWithoutAcknowledgement
+    if(readSoFar > limit || readSoFar < 0) throw new TooMuchDataWithoutAcknowledgement(limit)
   }
 
   def acknowledge() {
