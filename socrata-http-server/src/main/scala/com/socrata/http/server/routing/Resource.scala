@@ -44,8 +44,12 @@ trait Resource[From, To] extends Service[From, To] {
       // will have a stub impementation with the annotation privded
       // by scalac, but of course an overridden implementation will
       // no longer have the annotation.
-      if(cls.getDeclaredMethod(name.toLowerCase(Locale.US)).getAnnotation(classOf[Unoverridden]) eq null)
-        sb += name
+      try {
+        if(cls.getDeclaredMethod(name.toLowerCase(Locale.US)).getAnnotation(classOf[Unoverridden]) eq null)
+          sb += name
+      } catch {
+        case _: NoSuchMethodException => /* nothing */
+      }
     }
     check(HttpMethods.GET)
     check(HttpMethods.POST)
