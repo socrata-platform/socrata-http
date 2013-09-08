@@ -24,7 +24,7 @@ object Dependencies {
 
   def scalaReflect(scalaVersion: String) = "org.scala-lang" % "scala-reflect" % scalaVersion
 
-  val simpleArm = "com.rojoma" %% "simple-arm" % "1.1.10"
+  val simpleArm = "com.rojoma" %% "simple-arm" % "[1.1.10,2.0.0)"
 
   val slf4jVersion = "1.7.5"
   val jclOverSlf4j = "org.slf4j" % "jcl-over-slf4j" % slf4jVersion
