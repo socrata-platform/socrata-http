@@ -1,16 +1,18 @@
 package com.socrata.http.server
 
+import scala.collection.JavaConverters._
+
 import sun.misc.Signal
 import sun.misc.SignalHandler
 import java.util.concurrent.Semaphore
 
 import com.socrata.util.logging.LazyStringLogger
-import org.eclipse.jetty.server.handler.GzipHandler
-import org.eclipse.jetty.server.nio.SelectChannelConnector
-import org.eclipse.jetty.server.{Handler, Server}
+import org.eclipse.jetty.server.{ServerConnector, Handler, Server}
+import org.eclipse.jetty.servlets.gzip.GzipHandler
+import org.eclipse.jetty.util.component.LifeCycle
 
 case class GzipParameters(excludeUserAgent: String => Boolean = Set.empty,
-                          mimeTypes: String => Boolean = Function.const(true),
+                          mimeTypes: Set[String] = Set.empty,
                           bufferSize: Int = 8192,
                           minGzipSize: Int = 256)
 
@@ -39,9 +41,9 @@ class SocrataServerJetty(
    * Runs the servlet container.  Blocks until the container is stopped.
    */
   def run() {
-    val connector = new SelectChannelConnector
-    connector.setPort(port)
     val server = new Server
+    val connector = new ServerConnector(server)
+    connector.setPort(port)
     server.addConnector(connector)
 
     // I don't think this is necessary; it registers the server to be
@@ -56,7 +58,6 @@ class SocrataServerJetty(
     server.setHandler(countingHandler)
 
     val mbContainer = new org.eclipse.jetty.jmx.MBeanContainer(java.lang.management.ManagementFactory.getPlatformMBeanServer)
-    server.getContainer.addEventListener(mbContainer)
     server.addBean(mbContainer)
 
     val SIGTERM = new Signal("TERM")
@@ -75,6 +76,18 @@ class SocrataServerJetty(
         }
       }
     }
+
+    server.addLifeCycleListener(new LifeCycle.Listener {
+      def lifeCycleStarting(event: LifeCycle) {}
+
+      def lifeCycleStarted(event: LifeCycle) {}
+
+      def lifeCycleFailure(event: LifeCycle, cause: Throwable) {}
+
+      def lifeCycleStopping(event: LifeCycle) {}
+
+      def lifeCycleStopped(event: LifeCycle) { signalled.release() }
+    })
 
     var oldSIGTERM: SignalHandler = null
     var oldSIGINT: SignalHandler = null
@@ -143,7 +156,7 @@ class SocrataServerJetty(
       val gz = new GzipHandler
       gz.setHandler(underlying)
       gz.setExcluded(new StringPredicateSet(params.excludeUserAgent))
-      gz.setMimeTypes(new StringPredicateSet(params.mimeTypes))
+      gz.setMimeTypes(params.mimeTypes.asJava)
       gz.setBufferSize(params.bufferSize)
       gz.setMinGzipSize(params.minGzipSize)
       gz

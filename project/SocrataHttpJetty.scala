@@ -10,6 +10,7 @@ object SocrataHttpJetty {
       jettyJmx,
       jettyServer,
       jettyServlet,
+      jettyServlets,
       slf4jApi
     )
   )
