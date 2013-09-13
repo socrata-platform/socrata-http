@@ -12,7 +12,7 @@ object BuildSettings {
 
   val buildSettings: Seq[Setting[_]] = Defaults.defaultSettings ++ WebDav.scopedSettings ++ net.virtualvoid.sbt.graph.Plugin.graphSettings ++ Seq(
     organization := "com.socrata",
-    version := "1.3.2",
+    version := "1.3.3",
     scalaVersion := "2.10.0",
     crossScalaVersions := Seq("2.8.1", "2.9.2", "2.10.0"),
     resolvers <++= version { v =>
@@ -32,7 +32,7 @@ object BuildSettings {
   )
 
   val projectSettings: Seq[Setting[_]] = buildSettings ++ mimaDefaultSettings ++ Seq(
-    previousArtifact <<= (scalaBinaryVersion, name) { (sv, name) => Some("com.socrata" % (name + "_" + sv) % "1.2.0") },
+    previousArtifact <<= (scalaBinaryVersion, name) { (sv, name) => Some("com.socrata" % (name + "_" + sv) % "1.3.2") },
     testOptions in Test ++= Seq(
       Tests.Argument(TestFrameworks.ScalaTest, "-oFD")
     ),

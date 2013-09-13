@@ -2,7 +2,7 @@ import sbt._
 import Keys._
 
 object SocrataHttpJetty {
-  val jettyVersion = "7.5.1.v20110908"
+  val jettyVersion = "7.6.12.v20130726"
 
   val settings: Seq[Setting[_]] = BuildSettings.projectSettings ++ Seq(
     libraryDependencies ++= Seq(
