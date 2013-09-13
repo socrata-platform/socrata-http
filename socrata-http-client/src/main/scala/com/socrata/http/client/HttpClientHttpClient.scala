@@ -26,7 +26,7 @@ import com.socrata.http.client.`-impl`.{CatchingInputStream, ReaderInputStream, 
 /** Implementation of [[com.socrata.http.client.HttpClient]] based on Apache HttpComponents. */
 class HttpClientHttpClient(livenessChecker: LivenessChecker,
                            executor: Executor,
-                           continueTimeout: Option[Int] = Some(3000),
+                           continueTimeout: Option[Int] = None,
                            userAgent: String = "HttpClientHttpClient")
   extends HttpClient
 {
