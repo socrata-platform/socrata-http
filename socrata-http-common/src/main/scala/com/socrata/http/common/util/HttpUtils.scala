@@ -17,6 +17,14 @@ class HeaderParser(header: String) {
   }
   private def skip() { ptr += 1 }
 
+  def nothingLeft = {
+    val oldPtr = header.length
+    skipWhitespace()
+    val res = atEOF
+    ptr = oldPtr
+    res
+  }
+
   private def readTokenImpl(): String = {
     val sb = new java.lang.StringBuilder
     skipWhitespace()
@@ -72,6 +80,23 @@ class HeaderParser(header: String) {
     val origPtr = ptr
     try {
       readQuotedStringImpl()
+    } catch {
+      case e: Throwable =>
+        ptr = origPtr
+        throw e
+    }
+  }
+
+  private def tryReadQuotedStringImpl(): Option[String] = {
+    skipWhitespace()
+    if(atEOF || peek() != '"') None
+    else Some(readQuotedStringImpl())
+  }
+
+  def tryReadQuotedString(): Option[String] = {
+    val origPtr = ptr
+    try {
+      tryReadQuotedStringImpl()
     } catch {
       case e: Throwable =>
         ptr = origPtr
@@ -144,6 +169,33 @@ class HeaderParser(header: String) {
     if(atEOF) false
     else if(peek() == c) { read(); true }
     else false
+  }
+
+  private def readLiteralImpl(lit: String): Boolean = {
+    skipWhitespace()
+    var i = 0
+    while(i != lit.length) {
+      if(peek() == lit.charAt(i)) { read() }
+      else return false
+      i += 1
+    }
+    true
+  }
+
+  def readLiteral(lit: String): Boolean = {
+    val origPtr = ptr
+    try {
+      if(!readLiteralImpl(lit)) {
+        ptr = origPtr
+        false
+      } else {
+        true
+      }
+    } catch {
+      case e: Throwable =>
+        ptr = origPtr
+        throw e
+    }
   }
 
   def readLanguageRange(): Seq[String] = {
