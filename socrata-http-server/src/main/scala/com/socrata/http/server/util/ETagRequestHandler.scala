@@ -12,7 +12,7 @@ import java.util.Date
  */
 
 object ETagRequestHandler {
-  val IMS_FORMAT:SimpleDateFormat  = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz");
+  val IMS_FORMAT:SimpleDateFormat  = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz")
 
   def isValidETag(inmHeader:String, objectEtag:String):Boolean = {
     if (inmHeader != null && objectEtag != null) {
@@ -22,7 +22,7 @@ object ETagRequestHandler {
       for (tag <- inmHeader.split(",")) {
         if (tag.replaceAll("\"", "") == objectEtag) {
           // Valid ETag
-          true
+          return true
         }
       }
     }
