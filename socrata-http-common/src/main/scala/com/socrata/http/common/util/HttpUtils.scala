@@ -303,7 +303,7 @@ object HttpUtils {
   }
   case class MediaRange(typ: String, subtyp: String, params: Seq[(String, String)], q: Double, acceptParams: Seq[(String, String)]) extends Q
   case class CharsetRange(charset: String, q: Double) extends Q
-  case class LanguageRange(charset: Seq[String], q: Double) extends Q
+  case class LanguageRange(language: Seq[String], q: Double) extends Q
 
   private def parseParams(headerParser: HeaderParser): Vector[(String, String)] = {
     val b = Vector.newBuilder[(String, String)]
@@ -318,6 +318,18 @@ object HttpUtils {
   }
 
   def parseAccept(acceptHeader: String): Seq[MediaRange] = {
+    // An "Accept" header is 0 or more of comma-separated media-ranges.
+    // A media-range is ("*/*" or "type/*" or "type/subtype") followed by zero or more
+    // ;attribute={token|quoted-string}
+    // parameters.  The parameter "q" is special; it separates mimetype-parameters
+    // from accept-parameters and must be a number from 0 to 1, with at most 3 places
+    // after the (optional) decimal point.
+    //
+    // attribute, type, and subtype are all tokens.
+    //
+    // If a media-range has no "q" parameter it is assumed to be 1.
+    //
+    // Note: some broken user-agents will send "*" in place of "*/*'.
     try {
       val headerParser = new HeaderParser(acceptHeader)
       val mediaRanges = Vector.newBuilder[MediaRange]
@@ -351,6 +363,13 @@ object HttpUtils {
   }
 
   def parseAcceptCharset(acceptCharsetHeader: String): Seq[CharsetRange] = {
+    // An "Accept-Charset" header is 1 or more of comma-separated q-decorated charsets
+    // or wildcards:
+    //  ("*" | charset)[;q=qvalue]
+    //
+    // charset is a token.  qvalue is as above in `parseAccept`
+    //
+    // If a charset has no "q" parameter it is assumed to be 1.
     try {
       val headerParser = new HeaderParser(acceptCharsetHeader)
       val charsetRanges = Vector.newBuilder[CharsetRange]
@@ -381,6 +400,11 @@ object HttpUtils {
   }
 
   def parseAcceptLanguage(acceptLanguageHeader: String): Seq[LanguageRange] = {
+    // "Accept-Language" is much like Accept-Charset, only instead of "charset"
+    // is has a language-range, which is [A-Za-z]{1,8}(-[A-Za-z]{1,8})*|\*
+    // (i.e., a "*" or an unlimited number of dash-separated up-to-eight-letter blocks.)
+    //
+    // If a language-range has no "q" parameter it is assumed to be 1.
     try {
       val headerParser = new HeaderParser(acceptLanguageHeader)
       val languageRanges = Vector.newBuilder[LanguageRange]

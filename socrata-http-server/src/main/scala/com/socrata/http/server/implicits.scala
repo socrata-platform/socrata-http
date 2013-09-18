@@ -36,35 +36,15 @@ object implicits {
 
     def contentType = Option(underlying.getContentType)
 
-    def accept = headers("Accept").flatMap(HttpUtils.parseAccept)
-    def acceptCharset = headers("Accept-Charset").flatMap(HttpUtils.parseAcceptCharset)
-    def acceptLanguage = headers("Accept-Language").flatMap(HttpUtils.parseAcceptLanguage)
+    def accept = headers("Accept").toVector.flatMap(HttpUtils.parseAccept)
+    def acceptCharset = headers("Accept-Charset").toVector.flatMap(HttpUtils.parseAcceptCharset)
+    def acceptLanguage = headers("Accept-Language").toVector.flatMap(HttpUtils.parseAcceptLanguage)
 
-    /**
-     * Negotiate a MIME type for the response.
-     * @param available The list of MIME types we're willing to send, from most-preferred to least-preferred.
-     */
-    def preferredResponseType(available: Iterable[MimeType]): Option[MimeType] = {
-      val accept = Try(headers("Accept")).getOrElse(Iterator.empty).toSeq
-      ContentNegotiation.mimeType(accept, contentType, Some(underlying.getRequestURI), available)
-    }
-
-    /**
-     * Negotiate a character encoding for the response.
-     * @param available The list of encodings we're willing to produce, from most-preferred to least-preferred.
-     */
-    def preferredResponseCharset(available: Iterable[Charset]): Option[Charset] = {
-      val acceptLanguage = Try(headers("Accept-Charset")).getOrElse(Iterator.empty).toSeq
-      ContentNegotiation.charset(acceptLanguage, Some(underlying.getRequestURI), available)
-    }
-
-    /**
-     * Negotiate a human language for the response.
-     * @param available The list of languages we're willing to produce, from most-preferred to least-preferred.
-     */
-    def preferredLanguage(available: Iterable[String]): Option[String] = {
-      val acceptLanguage = Try(headers("Accept-Language")).getOrElse(Iterator.empty).toSeq
-      ContentNegotiation.language(acceptLanguage, available)
+    def negotiateContent(implicit contentNegotiation: ContentNegotiation) = {
+      val filename = requestPath.last
+      val dotpos = filename.lastIndexOf('.')
+      val ext = if(dotpos >= 0) Some(filename.substring(dotpos + 1)) else None
+      contentNegotiation(accept.toSeq, contentType, ext, acceptCharset.toSeq, acceptLanguage.toSeq)
     }
 
     private def checkHeaderAccess[T <: AnyRef](result: T): T = {

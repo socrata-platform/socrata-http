@@ -1,7 +1,27 @@
 package com.socrata.http.common.util
 
 import javax.activation.MimeType
-import java.nio.charset.Charset
+import java.nio.charset.{StandardCharsets, UnsupportedCharsetException, IllegalCharsetNameException, Charset}
+import com.socrata.http.common.util.HttpUtils.{LanguageRange, CharsetRange, MediaRange}
+import java.awt.datatransfer.MimeTypeParseException
+
+class ContentNegotiation(mimeTypes: Iterable[(MimeType, Option[String])], languages: Iterable[String]) {
+  private val mimetypeSet = mimeTypes.map(_._1).toSet
+  private val exts = mimeTypes.collect {
+    case (mt, Some(v)) => v.toLowerCase -> mt
+  }.toMap
+  val languageTrie = languages.zipWithIndex.foldLeft(Trie.empty[String, Int]) { (acc, langIdx) =>
+    val (lang, idx) = langIdx
+    acc + (lang.split('-').toSeq -> idx)
+  }
+  val firstLanguage = languages.head.split('-').toSeq
+
+  def apply(accept: Iterable[MediaRange], contentType: Option[String], ext: Option[String], acceptCharset: Iterable[CharsetRange], acceptLanguage: Iterable[LanguageRange]): Option[(MimeType, Charset, String)] =
+    for {
+      mimeType <- ContentNegotiation.mimeType(accept, contentType, ext, mimetypeSet, exts)
+      charset <- ContentNegotiation.charset(acceptCharset)
+    } yield (mimeType, charset, ContentNegotiation.language(acceptLanguage, languageTrie, firstLanguage))
+}
 
 object ContentNegotiation {
   // Generally speaking, for all of these we want to decorate the set of choices with
@@ -16,73 +36,101 @@ object ContentNegotiation {
   //
   // But for now, this is all TODO
 
-  def mimeType(accept: Iterable[String], contentType: Option[String], requestURI: Option[String], available: Iterable[MimeType]): Option[MimeType] = {
-    // An "Accept" header is 0 or more of comma-separated media-ranges.
-    // A media-range is ("*/*" or "type/*" or "type/subtype") followed by zero or more
-    // ;attribute={token|quoted-string}
-    // parameters.  The parameter "q" is special; it separates mimetype-parameters
-    // from accept-parameters and must be a number from 0 to 1, with at most 3 places
-    // after the (optional) decimal point.
-    //
-    // attribute, type, and subtype are all tokens.
-    //
-    // If a media-range has no "q" parameter it is assumed to be 1.
-    //
-    // Note: some broken user-agents will send "*" in place of "*/*'.
-    //
-    // We will IGNORE all mimetype-parameters not set in "available".  So for example
-    //    Accept: text/plain; foo=bar; q=1
-    // will match an available mimetype of either "text/plain;foo=bar" or "text/plain"
-    // It is only actually used to decorate the one which is the best match.
-    //
-    // It is not clear to me how "better match" is defined.
-    //
-    // We will IGNORE all accept-parameters.
-    //
-    // Use the request-uri, if it is set and if its extension is understood, to narrow down the list
-    // of available choices before applying the algorithm.
-    //
-    // If, after the algorithm, there is more than one choice remaining, prefer
-    // first the one that matches contentType if set, or failing that the one that
-    // came first in the list of available options.
-    available.headOption
+  private def parseContentType(ct: String): Option[MimeType] =
+    try {
+      Some(new MimeType(ct))
+    } catch {
+      case _: MimeTypeParseException => None
+    }
+
+  def stripParams(mt: MimeType): MimeType = new MimeType(mt.getPrimaryType, mt.getSubType)
+
+  def arrangeAccept(accept: Iterable[MediaRange]): Trie[String, Double] =
+    accept.foldLeft(Trie.empty[String, Double]) { (acc, mr) =>
+      if(mr.subtyp == "*") {
+        if(mr.typ == "*") {
+          acc + (Nil -> mr.q)
+        } else {
+          acc + (List(mr.typ) -> mr.q)
+        }
+      } else {
+        acc + (List(mr.typ, mr.subtyp) -> mr.q)
+      }
+    }
+
+  def qFor(xs: Iterable[String], qs: Trie[String, Double]): Double = qs.nearest(xs).getOrElse(0.0)
+
+  private val emptyAccept = Trie[String, Double](Nil -> 1.0)
+
+  // This currently COMPLETELY IGNORES non-q parameters on mimetypes.
+  // It also assumes that the values of "exts" are a subset of the values
+  // in "available", and that the iteration order of "available" reflects
+  // preference.
+  // We're basically ignoring the client's q-preference (except for q=0)
+  // and using the request's extension and content-type to guide our choice.
+  def mimeType(accept: Iterable[MediaRange], contentTypeRaw: Option[String], ext: Option[String], available: Set[MimeType], exts: Map[String, MimeType]): Option[MimeType] = {
+    val simplifiedAccept = if(accept.isEmpty) emptyAccept else arrangeAccept(accept)
+    def unacceptable(ct: MimeType): Boolean = qFor(List(ct.getPrimaryType, ct.getSubType), simplifiedAccept) <= 0
+    def forContentType: Option[MimeType] = contentTypeRaw.flatMap(parseContentType).map(stripParams).filter(available).filterNot(unacceptable)
+    def forExt: Option[MimeType] = ext.flatMap { (trueExt: String) =>
+      exts.get(trueExt.toLowerCase)
+    }.filterNot(unacceptable)
+    val fromClientParams = forExt orElse forContentType
+    fromClientParams.orElse {
+      available.find { mt =>
+        qFor(List(mt.getPrimaryType, mt.getSubType), simplifiedAccept) > 0
+      }
+    }
   }
 
-  def charset(acceptCharset: Iterable[String], contentType: Option[String], available: Iterable[Charset]): Option[Charset] = {
-    // An "Accept-Charset" header is 1 or more of comma-separated q-decorated charsets
-    // or wildcards:
-    //  ("*" | charset)[;q=qvalue]
-    //
-    // charset is a token.  qvalue is as above in `mimeType`
-    //
-    // If a charset has no "q" parameter it is assumed to be 1.
-    //
-    // A charset matches a name if Charset.forName(charset) == Charset.forName(name)
-    // (yes, ==, not eq).  There are only exact matches, not "better matches".
-    //
-    // If, after the algorithm, there is more than one choice remaining, prefer
-    // first the one that matches contentType if set, or failing that the one that
-    // came first in the list of available options.
-    //
-    // "available" here is slightly special.  Any charset which the JVM knows about
-    // but not in the list is considered to be "available" but after all specified
-    // choices.  This means that "available" should almost always be [UTF-8, ISO-8859-1]
+  def parseCharset(cs: String): Option[Charset] =
+    try {
+      Some(Charset.forName(cs))
+    } catch {
+      case _: IllegalCharsetNameException | _: UnsupportedCharsetException => None
+    }
 
-    available.headOption
+  def arrangeAcceptCharset(accept: Iterable[CharsetRange]) =
+    accept.foldLeft(Trie.empty[String, Double]) { (acc, cr) =>
+      if(cr.charset == "*") acc + (Nil -> cr.q)
+      else acc + (List(cr.charset) -> cr.q)
+    }
+
+  // Here we'll choose UTF-8 if it's acceptable, otherwise the charset
+  // with the highest Q-value.
+  def charset(acceptCharset: Iterable[CharsetRange]): Option[Charset] = {
+    if(acceptCharset.isEmpty) return Some(StandardCharsets.UTF_8)
+    val crs = acceptCharset.toArray
+    val star = acceptCharset.find(_.charset == "*")
+    val othersDisallowed = star.isEmpty || star.get.q <= 0
+    if(!othersDisallowed) return Some(StandardCharsets.UTF_8)
+    for(r <- crs) {
+      if(r.charset.equalsIgnoreCase("utf-8") && r.q > 0) return Some(StandardCharsets.UTF_8)
+    }
+    java.util.Arrays.sort(crs, Ordering[Double].on[CharsetRange](- _.q))
+    for(r <- crs) {
+      if(r.q <= 0) return None
+      parseCharset(r.charset) match {
+        case Some(cs) if cs.canEncode => return Some(cs)
+        case _ => // wasn't a charset we recognize or can encode with
+      }
+    }
+    None
   }
 
-  def language(acceptLanguage: Iterable[String], available: Iterable[String]): Option[String] = {
-    // "Accept-Language" is much like Accept-Charset, only instead of "charset"
-    // is has a language-range, which is [A-Za-z]{1,8}(-[A-Za-z]{1,8})*|\*
-    // (i.e., a "*" or an unlimited number of dash-separated up-to-eight-letter blocks.)
-    //
-    // If a language-range has no "q" parameter it is assumed to be 1.
-    //
-    // A range matches a real language if it is "*" or its set of blocks is a case-insensitive prefix
-    // of the set of blocks of the name of the actual language.  "Better match" means "longer prefix".
-    //
-    // If, after the algorithm, there is more than one choice remaining, prefer
-    // the one that came first in the list of available options.
-    available.headOption
+  def language(acceptLanguage: Iterable[LanguageRange], available: Trie[String, Int], fallback: Seq[String]): String = {
+    if(acceptLanguage.isEmpty) return fallback.mkString("-")
+    val simplified = acceptLanguage.toArray
+    java.util.Arrays.sort(simplified, Ordering[Double].on[LanguageRange](- _.q))
+    for(lr <- simplified) {
+      if(lr.q <= 0) return fallback.mkString("-")
+      available.subtrie(lr.language) match {
+        case Some(subtrie) =>
+          return (lr.language ++ subtrie.iterator.maxBy(_._2)._1).mkString("-")
+        case None =>
+          // ok we'll keep looking
+      }
+    }
+    fallback.mkString("-")
   }
 }
