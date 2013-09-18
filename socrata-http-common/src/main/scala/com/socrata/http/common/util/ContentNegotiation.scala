@@ -4,9 +4,14 @@ import javax.activation.MimeType
 import java.nio.charset.{StandardCharsets, UnsupportedCharsetException, IllegalCharsetNameException, Charset}
 import com.socrata.http.common.util.HttpUtils.{LanguageRange, CharsetRange, MediaRange}
 import java.awt.datatransfer.MimeTypeParseException
+import scala.collection.mutable
 
 class ContentNegotiation(mimeTypes: Iterable[(MimeType, Option[String])], languages: Iterable[String]) {
-  private val mimetypeSet = mimeTypes.map(_._1).toSet
+  private val mimetypeSet = locally {
+    val s = new mutable.LinkedHashSet[MimeType]
+    mimeTypes.foreach { mt => s += mt._1 }
+    s
+  }
   private val exts = mimeTypes.collect {
     case (mt, Some(v)) => v.toLowerCase -> mt
   }.toMap
@@ -33,8 +38,9 @@ object ContentNegotiation {
   // means "give me any English variant preferentially, then anything but German or English,
   // and NEVER German".  That is, "*" means "anything not referred to more specifically in
   // the list".
-  //
-  // But for now, this is all TODO
+
+  // The set of HTTP headers that influence the negotiation decision
+  val headers = Set("Accept", "Accept-Charset", "Accept-Language", "Content-Type")
 
   private def parseContentType(ct: String): Option[MimeType] =
     try {
@@ -68,7 +74,7 @@ object ContentNegotiation {
   // preference.
   // We're basically ignoring the client's q-preference (except for q=0)
   // and using the request's extension and content-type to guide our choice.
-  def mimeType(accept: Iterable[MediaRange], contentTypeRaw: Option[String], ext: Option[String], available: Set[MimeType], exts: Map[String, MimeType]): Option[MimeType] = {
+  def mimeType(accept: Iterable[MediaRange], contentTypeRaw: Option[String], ext: Option[String], available: scala.collection.Set[MimeType], exts: Map[String, MimeType]): Option[MimeType] = {
     val simplifiedAccept = if(accept.isEmpty) emptyAccept else arrangeAccept(accept)
     def unacceptable(ct: MimeType): Boolean = qFor(List(ct.getPrimaryType, ct.getSubType), simplifiedAccept) <= 0
     def forContentType: Option[MimeType] = contentTypeRaw.flatMap(parseContentType).map(stripParams).filter(available).filterNot(unacceptable)
