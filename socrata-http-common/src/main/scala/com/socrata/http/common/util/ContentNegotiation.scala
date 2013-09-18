@@ -6,6 +6,8 @@ import com.socrata.http.common.util.HttpUtils.{LanguageRange, CharsetRange, Medi
 import java.awt.datatransfer.MimeTypeParseException
 import scala.collection.mutable
 
+case class AliasedCharset(charset: Charset, alias: String)
+
 class ContentNegotiation(mimeTypes: Iterable[(MimeType, Option[String])], languages: Iterable[String]) {
   private val mimetypeSet = locally {
     val s = new mutable.LinkedHashSet[MimeType]
@@ -21,7 +23,7 @@ class ContentNegotiation(mimeTypes: Iterable[(MimeType, Option[String])], langua
   }
   val firstLanguage = languages.head.split('-').toSeq
 
-  def apply(accept: Iterable[MediaRange], contentType: Option[String], ext: Option[String], acceptCharset: Iterable[CharsetRange], acceptLanguage: Iterable[LanguageRange]): Option[(MimeType, Charset, String)] =
+  def apply(accept: Iterable[MediaRange], contentType: Option[String], ext: Option[String], acceptCharset: Iterable[CharsetRange], acceptLanguage: Iterable[LanguageRange]): Option[(MimeType, AliasedCharset, String)] =
     for {
       mimeType <- ContentNegotiation.mimeType(accept, contentType, ext, mimetypeSet, exts)
       charset <- ContentNegotiation.charset(acceptCharset)
@@ -104,20 +106,21 @@ object ContentNegotiation {
 
   // Here we'll choose UTF-8 if it's acceptable, otherwise the charset
   // with the highest Q-value.
-  def charset(acceptCharset: Iterable[CharsetRange]): Option[Charset] = {
-    if(acceptCharset.isEmpty) return Some(StandardCharsets.UTF_8)
+  private val stdCharset = Some(AliasedCharset(StandardCharsets.UTF_8, StandardCharsets.UTF_8.name))
+  def charset(acceptCharset: Iterable[CharsetRange]): Option[AliasedCharset] = {
+    if(acceptCharset.isEmpty) return stdCharset
     val crs = acceptCharset.toArray
     val star = acceptCharset.find(_.charset == "*")
     val othersDisallowed = star.isEmpty || star.get.q <= 0
-    if(!othersDisallowed) return Some(StandardCharsets.UTF_8)
+    if(!othersDisallowed) return stdCharset
     for(r <- crs) {
-      if(r.charset.equalsIgnoreCase("utf-8") && r.q > 0) return Some(StandardCharsets.UTF_8)
+      if(r.charset.equalsIgnoreCase("utf-8") && r.q > 0) return Some(AliasedCharset(StandardCharsets.UTF_8, r.charset))
     }
     java.util.Arrays.sort(crs, Ordering[Double].on[CharsetRange](- _.q))
     for(r <- crs) {
       if(r.q <= 0) return None
       parseCharset(r.charset) match {
-        case Some(cs) if cs.canEncode => return Some(cs)
+        case Some(cs) if cs.canEncode => return Some(AliasedCharset(cs, r.charset))
         case _ => // wasn't a charset we recognize or can encode with
       }
     }
