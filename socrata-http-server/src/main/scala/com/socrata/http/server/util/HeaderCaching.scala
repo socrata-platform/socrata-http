@@ -2,6 +2,8 @@ package com.socrata.http.server.util
 
 import com.socrata.http.common.util.{HeaderParser, HttpHeaderParseException}
 import scala.annotation.tailrec
+import javax.servlet.http.HttpServletRequest
+import com.socrata.http.server.implicits._
 
 sealed abstract class EntityTag {
   val value: String
@@ -51,29 +53,65 @@ object EntityTag {
   }
 }
 
-object HeaderCaching {
-  sealed trait IfNoneMatchResult
-  sealed trait IfMatchResult
-  case class ETags(etags: Seq[EntityTag]) extends IfNoneMatchResult with IfMatchResult
-  case object IfNonexistant extends IfNoneMatchResult
-  case object IfExists extends IfMatchResult
-  case object Unparsable extends IfNoneMatchResult with IfMatchResult
-
-  def parseIfNoneMatch(header: Option[String]): Option[IfNoneMatchResult] = header.map { s =>
-    try {
-      if(s.trim == "*") IfNonexistant
-      else ETags(EntityTag.parseList(new HeaderParser(s)))
-    } catch {
-      case e: HttpHeaderParseException => Unparsable
-    }
+sealed abstract class Precondition {
+  def passes(tag: Option[EntityTag], sideEffectFree: Boolean): Boolean
+  def map(f: EntityTag => EntityTag): Precondition
+  def flatMap(f: EntityTag => Seq[EntityTag]): Precondition
+}
+case object NoPrecondition extends Precondition {
+  def passes(tag: Option[EntityTag], sideEffectFree: Boolean): Boolean = true
+  def map(f: EntityTag => EntityTag) = this
+  def flatMap(f: EntityTag => Seq[EntityTag]) = this
+}
+case object IfDoesNotExist extends Precondition {
+  def passes(tag: Option[EntityTag], sideEffectFree: Boolean): Boolean = tag.isEmpty
+  def map(f: EntityTag => EntityTag) = this
+  def flatMap(f: EntityTag => Seq[EntityTag]) = this
+}
+case class IfNoneOf(etag: Seq[EntityTag]) extends Precondition {
+  def passes(tag: Option[EntityTag], sideEffectFree: Boolean): Boolean = tag match {
+    case Some(t) =>
+      if(sideEffectFree) !etag.exists(_.weakCompare(t))
+      else !etag.exists(_.strongCompare(t))
+    case None =>
+      true
   }
-
-  def parseIfMatch(header: Option[String]): Option[IfMatchResult] = header.map { s =>
-    try {
-      if(s.trim == "*") IfExists
-      else ETags(EntityTag.parseList(new HeaderParser(s)))
-    } catch {
-      case e: HttpHeaderParseException => Unparsable
-    }
+  def map(f: EntityTag => EntityTag) = IfNoneOf(etag.map(f))
+  def flatMap(f: EntityTag => Seq[EntityTag]) = IfNoneOf(etag.flatMap(f))
+}
+case object IfExists extends Precondition {
+  def passes(tag: Option[EntityTag], sideEffectFree: Boolean): Boolean = tag.nonEmpty
+  def map(f: EntityTag => EntityTag) = this
+  def flatMap(f: EntityTag => Seq[EntityTag]) = this
+}
+case class IfAnyOf(etag: Seq[EntityTag]) extends Precondition {
+  def passes(tag: Option[EntityTag], sideEffectFree: Boolean): Boolean = tag match {
+    case Some(t) =>
+      etag.exists(_.strongCompare(t))
+    case None =>
+      true
   }
+  def map(f: EntityTag => EntityTag) = IfAnyOf(etag.map(f))
+  def flatMap(f: EntityTag => Seq[EntityTag]) = IfAnyOf(etag.flatMap(f))
+}
+
+object Precondition {
+  def parseETagList(s: String) = EntityTag.parseList(new HeaderParser(s))
+
+  def precondition(req: HttpServletRequest): Precondition =
+    req.header("If-None-Match") match {
+      case Some(s) =>
+        // result of having both if-match and if-none-match is undefined, so we'll just
+        // arbitrarily prefer I-N-M if both exist.
+        if(s == "*") IfDoesNotExist
+        else IfNoneOf(parseETagList(s))
+      case None =>
+        req.header("If-Match") match {
+          case Some(s) =>
+            if(s == "*") IfExists
+            else IfAnyOf(parseETagList(s))
+          case None =>
+            NoPrecondition
+        }
+    }
 }
