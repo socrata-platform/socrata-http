@@ -1,6 +1,6 @@
 package com.socrata.http.server.util
 
-import com.socrata.http.common.util.{HeaderParser, HttpHeaderParseException}
+import com.socrata.http.common.util.{HttpUtils, HeaderParser, HttpHeaderParseException}
 import scala.annotation.tailrec
 import javax.servlet.http.HttpServletRequest
 import com.socrata.http.server.implicits._
@@ -17,6 +17,7 @@ sealed abstract class EntityTag {
 case class WeakEntityTag(value: String) extends EntityTag {
   def strongCompare(that: EntityTag): Boolean = false
   def map(f: String => String) = WeakEntityTag(f(value))
+  override def toString = "W/" + HttpUtils.quote(value)
 }
 
 case class StrongEntityTag(value: String) extends EntityTag {
@@ -25,6 +26,7 @@ case class StrongEntityTag(value: String) extends EntityTag {
     case WeakEntityTag(_) => false
   }
   def map(f: String => String) = StrongEntityTag(f(value))
+  override def toString = HttpUtils.quote(value)
 }
 
 object EntityTag {
