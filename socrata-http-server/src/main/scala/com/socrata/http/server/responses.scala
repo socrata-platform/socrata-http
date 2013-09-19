@@ -43,6 +43,7 @@ object responses {
   val MethodNotAllowed = Status(HttpServletResponse.SC_METHOD_NOT_ALLOWED)
   val NotAcceptable = Status(HttpServletResponse.SC_NOT_ACCEPTABLE) // Can't fulfil client's request for a content-type
   val Conflict = Status(HttpServletResponse.SC_CONFLICT) // Someone else is making a change at the same time (i.e., lock acquisition failure)
+  val PreconditionFailed = Status(HttpServletResponse.SC_PRECONDITION_FAILED)
   val RequestEntityTooLarge = Status(HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE)
   val UnsupportedMediaType = Status(HttpServletResponse.SC_UNSUPPORTED_MEDIA_TYPE) // upload in a format we don't understand
   val ImATeapot = Status(418) // What?  HttpServletResponse doesn't pre-define this one?
