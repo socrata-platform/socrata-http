@@ -10,10 +10,13 @@ sealed abstract class EntityTag {
 
   def weakCompare(that: EntityTag) = this.value == that.value
   def strongCompare(that: EntityTag): Boolean
+
+  def map(f: String => String): EntityTag
 }
 
 case class WeakEntityTag(value: String) extends EntityTag {
   def strongCompare(that: EntityTag): Boolean = false
+  def map(f: String => String) = WeakEntityTag(f(value))
 }
 
 case class StrongEntityTag(value: String) extends EntityTag {
@@ -21,6 +24,7 @@ case class StrongEntityTag(value: String) extends EntityTag {
     case StrongEntityTag(v) => value == v
     case WeakEntityTag(_) => false
   }
+  def map(f: String => String) = StrongEntityTag(f(value))
 }
 
 object EntityTag {
