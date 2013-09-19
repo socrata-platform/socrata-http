@@ -40,6 +40,7 @@ object EntityTag {
     case _: HttpHeaderParseException =>
       None
   }
+  def parse(header: String): Option[EntityTag] = parse(new HeaderParser(header))
 
   def parseList(headerParser: HeaderParser): Seq[EntityTag] = {
     val result = Vector.newBuilder[EntityTag]
@@ -57,6 +58,8 @@ object EntityTag {
     if(!headerParser.nothingLeft) throw new HttpHeaderParseException("Didn't consume entire header")
     result.result()
   }
+  def parseList(header: String): Seq[EntityTag] =
+    parseList(new HeaderParser(header))
 }
 
 sealed abstract class Precondition {
