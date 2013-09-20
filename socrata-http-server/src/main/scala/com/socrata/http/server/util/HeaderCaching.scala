@@ -86,7 +86,7 @@ case class IfNoneOf(etag: Seq[EntityTag]) extends Precondition {
       true
   }
   def filter(f: EntityTag => Boolean) = {
-    val newTags = etag.filterNot(f)
+    val newTags = etag.filter(f)
     if(newTags.isEmpty) Some(NoPrecondition)
     else Some(IfNoneOf(newTags))
   }
