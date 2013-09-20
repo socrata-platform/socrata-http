@@ -76,7 +76,7 @@ case object NoPrecondition extends Precondition {
   def map(f: EntityTag => EntityTag) = this
 }
 case object IfDoesNotExist extends Precondition {
-  def check(tag: Option[EntityTag], sideEffectFree: Boolean) = if(tag.nonEmpty) Precondition.FailedBecauseMatch else Precondition.Passed
+  def check(tag: Option[EntityTag], sideEffectFree: Boolean) = if(tag.nonEmpty) Precondition.FailedBecauseMatch(List(tag.get)) else Precondition.Passed
   def filter(f: EntityTag => Boolean) = Right(this)
   def map(f: EntityTag => EntityTag) = this
 }
@@ -84,10 +84,12 @@ case class IfNoneOf(etag: Seq[EntityTag]) extends Precondition {
   def check(tag: Option[EntityTag], sideEffectFree: Boolean) = tag match {
     case Some(t) =>
       val matches =
-        if(sideEffectFree) etag.exists(_.weakCompare(t))
-        else etag.exists(_.strongCompare(t))
-      if(matches) Precondition.FailedBecauseMatch
-      else Precondition.Passed
+        if(sideEffectFree) etag.find(_.weakCompare(t))
+        else etag.find(_.strongCompare(t))
+      matches match {
+        case Some(matched) => Precondition.FailedBecauseMatch(List(matched))
+        case None => Precondition.Passed
+      }
     case None =>
       Precondition.Passed
   }
@@ -114,7 +116,7 @@ case class IfAnyOf(etag: Seq[EntityTag]) extends Precondition {
   def map(f: EntityTag => EntityTag) = IfAnyOf(etag.map(f))
   def filter(f: EntityTag => Boolean) = {
     val newTags = etag.filter(f)
-    if(newTags.isEmpty) Left(Precondition.FailedBecauseMatch)
+    if(newTags.isEmpty) Left(Precondition.FailedBecauseMatch(etag))
     else Right(IfAnyOf(newTags))
   }
 }
@@ -139,7 +141,7 @@ object Precondition {
   sealed abstract class Result
   case object Passed extends Result
   sealed abstract class Failure extends Result
-  case object FailedBecauseMatch extends Failure
+  case class FailedBecauseMatch(etag: Seq[EntityTag]) extends Failure
   case object FailedBecauseNoMatch extends Failure
 
   def parseETagList(s: String) = EntityTag.parseList(new HeaderParser(s))
