@@ -73,7 +73,7 @@ case object NoPrecondition extends Precondition {
   def map(f: EntityTag => EntityTag) = this
 }
 case object IfDoesNotExist extends Precondition {
-  def passes(tag: Option[EntityTag], sideEffectFree: Boolean) = if(tag.isEmpty) Precondition.FailedBecauseMatch else Precondition.Passed
+  def passes(tag: Option[EntityTag], sideEffectFree: Boolean) = if(tag.nonEmpty) Precondition.FailedBecauseMatch else Precondition.Passed
   def filter(f: EntityTag => Boolean) = Right(this)
   def map(f: EntityTag => EntityTag) = this
 }
@@ -96,7 +96,7 @@ case class IfNoneOf(etag: Seq[EntityTag]) extends Precondition {
   def map(f: EntityTag => EntityTag) = IfNoneOf(etag.map(f))
 }
 case object IfExists extends Precondition {
-  def passes(tag: Option[EntityTag], sideEffectFree: Boolean) = if(tag.nonEmpty) Precondition.FailedBecauseNoMatch else Precondition.Passed
+  def passes(tag: Option[EntityTag], sideEffectFree: Boolean) = if(tag.isEmpty) Precondition.FailedBecauseNoMatch else Precondition.Passed
   def filter(f: EntityTag => Boolean) = Right(this)
   def map(f: EntityTag => EntityTag) = this
 }
