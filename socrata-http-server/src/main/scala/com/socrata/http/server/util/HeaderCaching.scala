@@ -102,25 +102,40 @@ case class IfAnyOf(etag: Seq[EntityTag]) extends Precondition {
   }
   def map(f: EntityTag => EntityTag) = IfAnyOf(etag.map(f))
   def flatMap(f: EntityTag => Seq[EntityTag]) = IfAnyOf(etag.flatMap(f))
+case class AndPrecondition(a: Precondition, b: Precondition) extends Precondition {
+  def passes(tag: Option[EntityTag], sideEffectFree: Boolean): Boolean =
+    a.passes(tag, sideEffectFree) && b.passes(tag, sideEffectFree)
+
+  def map(f: (EntityTag) => EntityTag): Precondition =
+    AndPrecondition(a.map(f), b.map(f))
+
+  def flatMap(f: (EntityTag) => Seq[EntityTag]): Precondition =
+    AndPrecondition(a.flatMap(f), b.flatMap(f))
 }
 
 object Precondition {
   def parseETagList(s: String) = EntityTag.parseList(new HeaderParser(s))
 
+  private def ifMatchPrecondition(req: HttpServletRequest): Option[Precondition] =
+    req.header("If-Match") map { s =>
+      if(s == "*") IfExists
+      else IfAnyOf(parseETagList(s))
+    }
+
   def precondition(req: HttpServletRequest): Precondition =
     req.header("If-None-Match") match {
       case Some(s) =>
-        // result of having both if-match and if-none-match is undefined, so we'll just
-        // arbitrarily prefer I-N-M if both exist.
-        if(s == "*") IfDoesNotExist
-        else IfNoneOf(parseETagList(s))
-      case None =>
-        req.header("If-Match") match {
-          case Some(s) =>
-            if(s == "*") IfExists
-            else IfAnyOf(parseETagList(s))
+        val inmPrecondition =
+          if(s == "*") IfDoesNotExist
+          else IfNoneOf(parseETagList(s))
+
+        ifMatchPrecondition(req) match {
+          case Some(imPrecondition) =>
+            AndPrecondition(inmPrecondition, imPrecondition)
           case None =>
-            NoPrecondition
+            inmPrecondition
         }
+      case None =>
+        ifMatchPrecondition(req).getOrElse(NoPrecondition)
     }
 }
