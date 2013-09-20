@@ -86,7 +86,11 @@ case class IfNoneOf(etag: Seq[EntityTag]) extends Precondition {
       true
   }
   def map(f: EntityTag => EntityTag) = IfNoneOf(etag.map(f))
-  def flatMap(f: EntityTag => Seq[EntityTag]) = IfNoneOf(etag.flatMap(f))
+  def flatMap(f: EntityTag => Seq[EntityTag]) = {
+    val newTags = etag.flatMap(f)
+    if(newTags.isEmpty) IfDoesNotExist
+    else IfNoneOf(newTags)
+  }
 }
 case object IfExists extends Precondition {
   def passes(tag: Option[EntityTag], sideEffectFree: Boolean): Boolean = tag.nonEmpty
@@ -101,7 +105,12 @@ case class IfAnyOf(etag: Seq[EntityTag]) extends Precondition {
       true
   }
   def map(f: EntityTag => EntityTag) = IfAnyOf(etag.map(f))
-  def flatMap(f: EntityTag => Seq[EntityTag]) = IfAnyOf(etag.flatMap(f))
+  def flatMap(f: EntityTag => Seq[EntityTag]) = {
+    val newTags = etag.flatMap(f)
+    if(newTags.isEmpty) IfExists
+    else IfAnyOf(newTags)
+  }
+}
 case class AndPrecondition(a: Precondition, b: Precondition) extends Precondition {
   def passes(tag: Option[EntityTag], sideEffectFree: Boolean): Boolean =
     a.passes(tag, sideEffectFree) && b.passes(tag, sideEffectFree)
