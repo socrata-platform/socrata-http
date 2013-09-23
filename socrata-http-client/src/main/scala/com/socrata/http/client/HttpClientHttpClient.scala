@@ -21,7 +21,7 @@ import com.rojoma.simplearm.util._
 import com.socrata.http.client.exceptions._
 import com.socrata.http.common.util.TimeoutManager
 import com.socrata.http.`-impl`.NoopCloseable
-import com.socrata.http.client.`-impl`.{CatchingInputStream, ReaderInputStream, JsonEventIteratorReader, FormReader}
+import com.socrata.http.client.`-impl`._
 
 /** Implementation of [[com.socrata.http.client.HttpClient]] based on Apache HttpComponents. */
 class HttpClientHttpClient(livenessChecker: LivenessChecker,
@@ -125,36 +125,32 @@ class HttpClientHttpClient(livenessChecker: LivenessChecker,
       }
 
       val entity = response.getEntity
-      if(entity != null) {
-        val content = entity.getContent()
-        try {
-          val catchingInputStream = CatchingInputStream(content) {
-            case e: SocketException if e.getMessage == "Socket closed" =>
-              probablyAborted(e)
-            case e: InterruptedIOException if e.getMessage == "Connection already shutdown" =>
-              probablyAborted(e)
-            case e: SSLException =>
-              probablyAborted(e)
-            case e: java.net.SocketTimeoutException =>
-              receiveTimeout()
-          }
-          val responseInfo = new ResponseInfo {
-            val resultCode = response.getStatusLine.getStatusCode
-            // I am *fairly* sure (from code-diving) that the value field of a header
-            // parsed from a response will never be null.
-            def headers(name: String) = response.getHeaders(name).map(_.getValue)
-            lazy val headerNames = response.getAllHeaders.iterator.map(_.getName.toLowerCase).toSet
-          }
-          f((responseInfo, catchingInputStream))
-        } catch {
-          case e: Exception =>
-            req.abort()
-            throw e
-        } finally {
-          content.close()
+      val content = if(entity != null) entity.getContent() else EmptyInputStream
+      try {
+        val catchingInputStream = CatchingInputStream(content) {
+          case e: SocketException if e.getMessage == "Socket closed" =>
+            probablyAborted(e)
+          case e: InterruptedIOException if e.getMessage == "Connection already shutdown" =>
+            probablyAborted(e)
+          case e: SSLException =>
+            probablyAborted(e)
+          case e: java.net.SocketTimeoutException =>
+            receiveTimeout()
         }
-      } else {
-        noBodyInResponse()
+        val responseInfo = new ResponseInfo {
+          val resultCode = response.getStatusLine.getStatusCode
+          // I am *fairly* sure (from code-diving) that the value field of a header
+          // parsed from a response will never be null.
+          def headers(name: String) = response.getHeaders(name).map(_.getValue)
+          lazy val headerNames = response.getAllHeaders.iterator.map(_.getName.toLowerCase).toSet
+        }
+        f((responseInfo, catchingInputStream))
+      } catch {
+        case e: Exception =>
+          req.abort()
+          throw e
+      } finally {
+        content.close()
       }
     }
   }
