@@ -116,7 +116,7 @@ case class IfAnyOf(etag: Seq[EntityTag]) extends Precondition {
   def map(f: EntityTag => EntityTag) = IfAnyOf(etag.map(f))
   def filter(f: EntityTag => Boolean) = {
     val newTags = etag.filter(f)
-    if(newTags.isEmpty) Left(Precondition.FailedBecauseMatch(etag))
+    if(newTags.isEmpty) Left(Precondition.FailedBecauseNoMatch)
     else Right(IfAnyOf(newTags))
   }
 }
