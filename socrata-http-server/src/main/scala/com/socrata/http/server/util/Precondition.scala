@@ -1,42 +1,96 @@
 package com.socrata.http.server.util
 
-import com.socrata.http.common.util.{HttpUtils, HeaderParser, HttpHeaderParseException}
-import scala.annotation.tailrec
-import javax.servlet.http.HttpServletRequest
-import com.socrata.http.server.implicits._
-import org.apache.commons.codec.binary.Base64
-import com.socrata.http.server.util.Precondition.{Result, FailedBecauseNoMatch}
-
 // TODO: Although intended to implement HTTP If-[None-]Match handling, none of this is
 // actually HTTP-specific.  This should be moved into a non-HTTP package.
 
-sealed abstract class EntityTag(value: Array[Byte]) {
-  val asBytesUnsafe = value.clone()
+sealed abstract class EntityTag (val asBytesUnsafe: Array[Byte]) { // note: it is subclasses' responsibility to copy the input
   def asBytes = asBytesUnsafe.clone()
+
+  def startsWith(bytes: Array[Byte]): Boolean =
+    bytes.length <= asBytesUnsafe.length && {
+      var i = bytes.length - 1
+      while(i >= 0 && asBytesUnsafe(i) == bytes(i)) i -= 1
+      i == -1
+    }
+
+  def endsWith(bytes: Array[Byte]): Boolean =
+    bytes.length <= asBytesUnsafe.length && {
+      var i = asBytesUnsafe.length - 1
+      val d = asBytesUnsafe.length - bytes.length
+      val end = d - 1
+      while(i != end && asBytesUnsafe(i) == bytes(i - d)) i -= 1
+      i == end
+    }
 
   def weakCompare(that: EntityTag) = java.util.Arrays.equals(this.asBytesUnsafe, that.asBytesUnsafe)
   def strongCompare(that: EntityTag): Boolean
 
   def map(f: Array[Byte] => Array[Byte]): EntityTag
+  // special cases of map
+  def append(bytes: Array[Byte]): EntityTag
+  def prepend(bytes: Array[Byte]): EntityTag
+  def drop(n: Int): EntityTag
+  def dropRight(n: Int): EntityTag
 
-  override final def toString = getClass.getSimpleName + "(\"" + Base64.encodeBase64URLSafeString(asBytesUnsafe) + "\")"
+  override final def toString = getClass.getSimpleName + "(" + asBytesUnsafe.mkString(",") + ")"
 }
 
-final class WeakEntityTag(value: Array[Byte]) extends EntityTag(value) {
+object EntityTag {
+  def appendBytes(a: Array[Byte], b: Array[Byte]) = {
+    val res = new Array[Byte](a.length + b.length)
+    System.arraycopy(a, 0, res, 0, a.length)
+    System.arraycopy(b, 0, res, a.length, b.length)
+    res
+  }
+
+  def dropBytes(a: Array[Byte], n: Int): Array[Byte] = {
+    if(n >= a.length) new Array[Byte](0)
+    else if(n <= 0) a
+    else {
+      val res = new Array[Byte](a.length - n)
+      System.arraycopy(a, n, res, 0, res.length)
+      res
+    }
+  }
+
+  def dropRightBytes(a: Array[Byte], n: Int): Array[Byte] = {
+    if(n >= a.length) new Array[Byte](0)
+    else if(n <= 0) a
+    else {
+      val res = new Array[Byte](a.length - n)
+      System.arraycopy(a, 0, res, 0, res.length)
+      res
+    }
+  }
+}
+
+final class WeakEntityTag private (value: Array[Byte], dummy: Boolean) extends EntityTag(value) {
+  def this(value: Array[Byte]) = this(value.clone(), false)
+
   def strongCompare(that: EntityTag): Boolean = false
   def map(f: Array[Byte] => Array[Byte]) = WeakEntityTag(f(asBytes))
+  def append(bytes: Array[Byte]) = new WeakEntityTag(EntityTag.appendBytes(asBytesUnsafe, bytes), false)
+  def prepend(bytes: Array[Byte]) = new WeakEntityTag(EntityTag.appendBytes(bytes, asBytesUnsafe), false)
+  def drop(n: Int) = new WeakEntityTag(EntityTag.dropBytes(asBytesUnsafe, n), false)
+  def dropRight(n: Int) = new WeakEntityTag(EntityTag.dropRightBytes(asBytesUnsafe, n), false)
 }
 
 object WeakEntityTag extends (Array[Byte] => WeakEntityTag) {
   def apply(value: Array[Byte]) = new WeakEntityTag(value)
 }
 
-final class StrongEntityTag(value: Array[Byte]) extends EntityTag(value) {
+final class StrongEntityTag private (value: Array[Byte], dummy: Boolean) extends EntityTag(value) {
+  def this(value: Array[Byte]) = this(value.clone(), false)
+
   def strongCompare(that: EntityTag): Boolean = that match {
     case s: StrongEntityTag => java.util.Arrays.equals(asBytesUnsafe, s.asBytesUnsafe)
     case _: WeakEntityTag => false
   }
-  def map(f: Array[Byte] => Array[Byte]) = StrongEntityTag(f(value))
+  def map(f: Array[Byte] => Array[Byte]) = StrongEntityTag(f(asBytes))
+  def append(bytes: Array[Byte]) = new StrongEntityTag(EntityTag.appendBytes(asBytesUnsafe, bytes), false)
+  def prepend(bytes: Array[Byte]) = new StrongEntityTag(EntityTag.appendBytes(bytes, asBytesUnsafe), false)
+  def drop(n: Int) = new StrongEntityTag(EntityTag.dropBytes(asBytesUnsafe, n), false)
+  def dropRight(n: Int) = new StrongEntityTag(EntityTag.dropRightBytes(asBytesUnsafe, n), false)
 }
 
 object StrongEntityTag extends (Array[Byte] => StrongEntityTag) {
