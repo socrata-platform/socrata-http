@@ -4,62 +4,44 @@ import com.socrata.http.common.util.{HttpUtils, HeaderParser, HttpHeaderParseExc
 import scala.annotation.tailrec
 import javax.servlet.http.HttpServletRequest
 import com.socrata.http.server.implicits._
+import org.apache.commons.codec.binary.Base64
+import com.socrata.http.server.util.Precondition.{Result, FailedBecauseNoMatch}
 
-sealed abstract class EntityTag {
-  val value: String
+// TODO: Although intended to implement HTTP If-[None-]Match handling, none of this is
+// actually HTTP-specific.  This should be moved into a non-HTTP package.
 
-  def weakCompare(that: EntityTag) = this.value == that.value
+sealed abstract class EntityTag(value: Array[Byte]) {
+  val asBytesUnsafe = value.clone()
+  def asBytes = asBytesUnsafe.clone()
+
+  def weakCompare(that: EntityTag) = java.util.Arrays.equals(this.asBytesUnsafe, that.asBytesUnsafe)
   def strongCompare(that: EntityTag): Boolean
 
-  def map(f: String => String): EntityTag
+  def map(f: Array[Byte] => Array[Byte]): EntityTag
+
+  override final def toString = getClass.getSimpleName + "(\"" + Base64.encodeBase64URLSafeString(asBytesUnsafe) + "\")"
 }
 
-case class WeakEntityTag(value: String) extends EntityTag {
+final class WeakEntityTag(value: Array[Byte]) extends EntityTag(value) {
   def strongCompare(that: EntityTag): Boolean = false
-  def map(f: String => String) = WeakEntityTag(f(value))
-  override def toString = "W/" + HttpUtils.quote(value)
+  def map(f: Array[Byte] => Array[Byte]) = WeakEntityTag(f(asBytes))
 }
 
-case class StrongEntityTag(value: String) extends EntityTag {
+object WeakEntityTag extends (Array[Byte] => WeakEntityTag) {
+  def apply(value: Array[Byte]) = new WeakEntityTag(value)
+}
+
+final class StrongEntityTag(value: Array[Byte]) extends EntityTag(value) {
   def strongCompare(that: EntityTag): Boolean = that match {
-    case StrongEntityTag(v) => value == v
-    case WeakEntityTag(_) => false
+    case s: StrongEntityTag => java.util.Arrays.equals(asBytesUnsafe, s.asBytesUnsafe)
+    case _: WeakEntityTag => false
   }
-  def map(f: String => String) = StrongEntityTag(f(value))
-  override def toString = HttpUtils.quote(value)
+  def map(f: Array[Byte] => Array[Byte]) = StrongEntityTag(f(value))
 }
 
-object EntityTag {
-  def parse(headerParser: HeaderParser): Option[EntityTag] = try {
-    if(headerParser.readLiteral("W/")) {
-      Some(new WeakEntityTag(headerParser.readQuotedString()))
-    } else {
-      headerParser.tryReadQuotedString().map(StrongEntityTag)
-    }
-  } catch {
-    case _: HttpHeaderParseException =>
-      None
-  }
-  def parse(header: String): Option[EntityTag] = parse(new HeaderParser(header))
-
-  def parseList(headerParser: HeaderParser): Seq[EntityTag] = {
-    val result = Vector.newBuilder[EntityTag]
-    @tailrec
-    def loop() {
-      parse(headerParser) match {
-        case Some(tag) =>
-          result += tag
-          if(headerParser.tryReadChar(',')) loop()
-        case None =>
-          // done
-      }
-    }
-    loop()
-    if(!headerParser.nothingLeft) throw new HttpHeaderParseException("Didn't consume entire header")
-    result.result()
-  }
-  def parseList(header: String): Seq[EntityTag] =
-    parseList(new HeaderParser(header))
+object StrongEntityTag extends (Array[Byte] => StrongEntityTag) {
+  def apply(value: Array[Byte]) = new StrongEntityTag(value)
+  override def toString = "StrongEntityTag"
 }
 
 sealed abstract class Precondition {
@@ -67,7 +49,13 @@ sealed abstract class Precondition {
   def passes(tag: Option[EntityTag], sideEffectFree: Boolean): Precondition.Result = check(tag, sideEffectFree)
   def check(tag: Option[EntityTag], sideEffectFree: Boolean): Precondition.Result
 
-  def filter(f: EntityTag => Boolean): Either[Precondition.Failure, Precondition]
+  // Eliminates some tags from consideration.  This exists so services can nest
+  // etags from inner services within etags of their own.
+  //
+  // I would like this to always return a Precondition, but it's possible that
+  // the predicate will eliminate all the etags, and on an If-Match, the resulting
+  // precondition would be inexpressible in HTTP.
+  def filter(f: EntityTag => Boolean): Either[Precondition.FailedBecauseNoMatch.type, Precondition]
   def map(f: EntityTag => EntityTag): Precondition
 }
 case object NoPrecondition extends Precondition {
@@ -143,29 +131,4 @@ object Precondition {
   sealed abstract class Failure extends Result
   case class FailedBecauseMatch(etag: Seq[EntityTag]) extends Failure
   case object FailedBecauseNoMatch extends Failure
-
-  def parseETagList(s: String) = EntityTag.parseList(new HeaderParser(s))
-
-  private def ifMatchPrecondition(req: HttpServletRequest): Option[Precondition] =
-    req.header("If-Match") map { s =>
-      if(s == "*") IfExists
-      else IfAnyOf(parseETagList(s))
-    }
-
-  def precondition(req: HttpServletRequest): Precondition =
-    req.header("If-None-Match") match {
-      case Some(s) =>
-        val inmPrecondition =
-          if(s == "*") IfDoesNotExist
-          else IfNoneOf(parseETagList(s))
-
-        ifMatchPrecondition(req) match {
-          case Some(imPrecondition) =>
-            AndPrecondition(inmPrecondition, imPrecondition)
-          case None =>
-            inmPrecondition
-        }
-      case None =>
-        ifMatchPrecondition(req).getOrElse(NoPrecondition)
-    }
 }

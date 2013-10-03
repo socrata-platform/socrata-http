@@ -6,10 +6,7 @@ import java.net.URLDecoder
 
 import com.socrata.http.server.`-impl`.ChainedHttpResponse
 import com.socrata.http.common.util.{HttpUtils, ContentNegotiation}
-import scala.util.Try
-import javax.activation.MimeType
-import java.nio.charset.Charset
-import com.socrata.http.server.util.Precondition
+import com.socrata.http.server.util.PreconditionParser
 
 object implicits {
   implicit def httpResponseToChainedResponse(resp: HttpResponse) = resp match {
@@ -41,7 +38,7 @@ object implicits {
     def acceptCharset = headers("Accept-Charset").toVector.flatMap(HttpUtils.parseAcceptCharset)
     def acceptLanguage = headers("Accept-Language").toVector.flatMap(HttpUtils.parseAcceptLanguage)
 
-    def precondition = Precondition.precondition(underlying)
+    def precondition = PreconditionParser.precondition(underlying)
 
     def negotiateContent(implicit contentNegotiation: ContentNegotiation) = {
       val filename = requestPath.last

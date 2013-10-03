@@ -7,6 +7,8 @@ object Dependencies {
 
   val commonsLang = "commons-lang" % "commons-lang" % "2.4"
 
+  val commonsCodec = "commons-codec" % "commons-codec" % "1.8"
+
   val curatorDiscovery = "com.netflix.curator" % "curator-x-discovery" % "1.3.3"
 
   val javaxServlet = "javax.servlet" % "servlet-api" % "2.5"

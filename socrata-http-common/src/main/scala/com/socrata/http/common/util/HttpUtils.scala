@@ -164,25 +164,39 @@ class HeaderParser(header: String) {
     }
   }
 
-  def tryReadChar(c: Char): Boolean = {
+  private def tryReadCharImpl(c: Char): Boolean = {
     skipWhitespace()
     if(atEOF) false
     else if(peek() == c) { read(); true }
     else false
   }
 
+  def tryReadChar(c: Char): Boolean = {
+    val origPtr = ptr
+    if(!tryReadCharImpl(c)) {
+      ptr = origPtr
+      false
+    } else {
+      true
+    }
+  }
+
   private def readLiteralImpl(lit: String): Boolean = {
     skipWhitespace()
     var i = 0
     while(i != lit.length) {
-      if(peek() == lit.charAt(i)) { read() }
+      if(!atEOF && peek() == lit.charAt(i)) { read() }
       else return false
       i += 1
     }
     true
   }
 
-  def readLiteral(lit: String): Boolean = {
+  def readLiteral(lit: String) {
+    if(!tryReadLiteral(lit)) throw new HttpHeaderParseException("Expected to find " + lit + " but didn't")
+  }
+
+  def tryReadLiteral(lit: String): Boolean = {
     val origPtr = ptr
     try {
       if(!readLiteralImpl(lit)) {

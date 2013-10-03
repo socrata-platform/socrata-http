@@ -5,6 +5,8 @@ import java.io.{OutputStream, Writer}
 import java.net.URL
 
 import implicits._
+import com.socrata.http.server.util.{WeakEntityTag, StrongEntityTag, EntityTag}
+import org.apache.commons.codec.binary.Base64
 
 object responses {
   def quotedString(s: String) = "\"" + s.replaceAll("\"", "\\\"") + "\""
@@ -14,6 +16,24 @@ object responses {
   def ContentType(mime: String) = r(_.setContentType(mime))
 
   def Location(url: URL) = Header("Location", url.toExternalForm)
+
+  def ETag(etag: EntityTag*) = ETags(etag)
+
+  private def renderEntityTag(etag: EntityTag): String = {
+    def quoted(bs: Array[Byte]) = '"' + Base64.encodeBase64URLSafeString(bs) + '"'
+    etag match {
+      case s: StrongEntityTag =>
+        quoted(s.asBytesUnsafe)
+      case w: WeakEntityTag =>
+        "W/" + quoted(w.asBytesUnsafe)
+    }
+  }
+
+  def ETags(etags: Seq[EntityTag]) = r { resp =>
+    etags.foreach { etag =>
+      resp.addHeader("ETag", renderEntityTag(etag))
+    }
+  }
 
   def Write(f: Writer => Unit) = r { resp => f(resp.getWriter) }
   def Stream(f: OutputStream => Unit) = r { resp => f(resp.getOutputStream) }
