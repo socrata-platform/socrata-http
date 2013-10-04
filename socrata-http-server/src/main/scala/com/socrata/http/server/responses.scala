@@ -5,7 +5,7 @@ import java.io.{OutputStream, Writer}
 import java.net.URL
 
 import implicits._
-import com.socrata.http.server.util.{WeakEntityTag, StrongEntityTag, EntityTag}
+import com.socrata.http.server.util.{EntityTagRenderer, WeakEntityTag, StrongEntityTag, EntityTag}
 import org.apache.commons.codec.binary.Base64
 
 object responses {
@@ -19,19 +19,9 @@ object responses {
 
   def ETag(etag: EntityTag*) = ETags(etag)
 
-  private def renderEntityTag(etag: EntityTag): String = {
-    def quoted(bs: Array[Byte]) = '"' + Base64.encodeBase64URLSafeString(bs) + '"'
-    etag match {
-      case s: StrongEntityTag =>
-        quoted(s.asBytesUnsafe)
-      case w: WeakEntityTag =>
-        "W/" + quoted(w.asBytesUnsafe)
-    }
-  }
-
   def ETags(etags: Seq[EntityTag]) = r { resp =>
     etags.foreach { etag =>
-      resp.addHeader("ETag", renderEntityTag(etag))
+      resp.addHeader("ETag", EntityTagRenderer(etag))
     }
   }
 
