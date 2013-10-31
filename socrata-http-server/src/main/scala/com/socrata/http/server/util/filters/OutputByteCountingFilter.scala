@@ -35,7 +35,7 @@ object OutputByteCountingFilter {
     override lazy val getOutputStream: ServletOutputStream = {
       if(state == WRITER) throw new IllegalStateException("WRITER")
       state = STREAM
-      new ServletOutputStreamFilter(getCountingOutputStream)
+      new ByteCountingOutputStream(getCountingOutputStream)
     }
 
     // This is not actually possible to implement correctly without re-doing vast amounts of terribly hairy
@@ -50,7 +50,7 @@ object OutputByteCountingFilter {
       new PrintWriter(new UTF8CountingWriter(super.getWriter))
     }
 
-    class ByteCountingOutputStream(underlying: OutputStream) extends FilterOutputStream(underlying) {
+    class ByteCountingOutputStream(underlying: ServletOutputStream) extends ServletOutputStream {
       override def write(b: Int) {
         underlying.write(b)
         count += 1
@@ -66,13 +66,18 @@ object OutputByteCountingFilter {
         count += len
       }
 
-      def bytesWritten = count
-    }
+      override def close() {
+        underlying.close()
+      }
 
-    class ServletOutputStreamFilter(underlying: OutputStream) extends ServletOutputStream {
-      def write(b: Int) = underlying.write(b)
-      override def write(bs: Array[Byte]) = underlying.write(bs)
-      override def write(bs: Array[Byte], off: Int, len: Int) = underlying.write(bs, off, len)
+      override def flush() {
+        underlying.flush()
+      }
+
+      def isReady(): Boolean = underlying.isReady
+      def setWriteListener(x: javax.servlet.WriteListener): Unit = underlying.setWriteListener(x)
+
+      def bytesWritten = count
     }
 
     class UTF8CountingWriter(underlying: Writer) extends FilterWriter(underlying) {

@@ -11,9 +11,9 @@ object Dependencies {
 
   val curatorDiscovery = "com.netflix.curator" % "curator-x-discovery" % "1.3.3"
 
-  val javaxServlet = "javax.servlet" % "servlet-api" % "2.5"
+  val javaxServlet = "javax.servlet" % "javax.servlet-api" % "3.1.0"
 
-  val jettyVersion = "7.6.12.v20130726"
+  val jettyVersion = "8.1.13.v20130916"
   val jettyJmx = "org.eclipse.jetty" % "jetty-jmx" % jettyVersion
   val jettyServer = "org.eclipse.jetty" % "jetty-server" % jettyVersion
   val jettyServlet = "org.eclipse.jetty" % "jetty-servlet" % jettyVersion
