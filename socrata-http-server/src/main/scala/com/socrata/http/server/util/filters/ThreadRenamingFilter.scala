@@ -19,6 +19,7 @@ abstract class ThreadRenamingFilter[InDown, OutUp] extends Filter[InDown, OutUp,
 }
 
 object ThreadRenamingFilter {
+  @deprecated("Prefer the ThreadRenamingHandler", since="2.0-SNAPSHOT")
   object Default extends ThreadRenamingFilter[HttpServletRequest, HttpResponse] {
     def newName(req: HttpServletRequest) =
       Thread.currentThread.getId + " / " + req.getMethod + " " + req.getRequestURI + Option(req.getQueryString).fold("")("?" + _)
