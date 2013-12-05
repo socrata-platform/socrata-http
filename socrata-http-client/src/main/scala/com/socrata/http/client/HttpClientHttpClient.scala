@@ -69,7 +69,46 @@ class HttpClientHttpClient(livenessChecker: LivenessChecker,
     }
   }
 
-  private def send[A](req: HttpUriRequest, timeout: Option[Int], pingTarget: Option[LivenessCheckTarget], f: RawResponse => A): A = {
+  // Pending the addition of this functionality in simple-arm
+  private class ResourceScope extends Closeable {
+    private var things: List[(Any, Resource[Any])] = Nil
+
+    def open[T](f: => T)(implicit ev: Resource[T]): T = {
+      val thing = f
+      try {
+        things = (thing, ev.asInstanceOf[Resource[Any]]) :: things
+      } catch {
+        case t: Throwable =>
+          try { ev.closeAbnormally(thing, t) }
+          catch { case t2: Throwable => t.addSuppressed(t2) }
+          throw t
+      }
+      thing
+    }
+    def close() {
+      try {
+        while(things.nonEmpty) {
+          val toClose = things.head
+          things = things.tail
+          toClose._2.close(toClose._1)
+        }
+      } catch {
+        case t: Throwable =>
+          while(things.nonEmpty) {
+            val toClose = things.head
+            things = things.tail
+            try {
+              toClose._2.close(toClose._1)
+            } catch {
+              case t2: Throwable => t.addSuppressed(t2)
+            }
+          }
+          throw t
+      }
+    }
+  }
+
+  private def send[A](req: HttpUriRequest, timeout: Option[Int], pingTarget: Option[LivenessCheckTarget]): RawResponse with Closeable = {
     val LivenessCheck = 0
     val FullTimeout = 1
     @volatile var abortReason: Int = -1 // this can be touched from another thread
@@ -83,20 +122,21 @@ class HttpClientHttpClient(livenessChecker: LivenessChecker,
       }
     }
 
-    for {
-      _ <- managed {
+    val scope = new ResourceScope
+    try {
+      scope.open {
         pingTarget match {
           case Some(target) => livenessChecker.check(target) { abortReason = LivenessCheck; req.abort() }
           case None => NoopCloseable
         }
       }
-      _ <- managed {
+      scope.open {
         timeout match {
           case Some(ms) => timeoutManager.addJob(ms) { abortReason = FullTimeout; req.abort() }
           case None => NoopCloseable
         }
       }
-    } yield {
+
       val response = try {
         httpclient.execute(req)
       } catch {
@@ -118,44 +158,54 @@ class HttpClientHttpClient(livenessChecker: LivenessChecker,
           receiveTimeout()
       }
 
-      if(log.isTraceEnabled) {
-        log.trace("<<< {}", response.getStatusLine)
-        log.trace("<<< {}", Option(response.getFirstHeader("Content-type")).getOrElse("[no content type]"))
-        log.trace("<<< {}", Option(response.getFirstHeader("Content-length")).getOrElse("[no content length]"))
-      }
-
-      val entity = response.getEntity
-      val content = if(entity != null) entity.getContent() else EmptyInputStream
       try {
-        val catchingInputStream = CatchingInputStream(content) {
-          case e: SocketException if e.getMessage == "Socket closed" =>
-            probablyAborted(e)
-          case e: InterruptedIOException if e.getMessage == "Connection already shutdown" =>
-            probablyAborted(e)
-          case e: SSLException =>
-            probablyAborted(e)
-          case e: java.net.SocketTimeoutException =>
-            receiveTimeout()
+        if(log.isTraceEnabled) {
+          log.trace("<<< {}", response.getStatusLine)
+          log.trace("<<< {}", Option(response.getFirstHeader("Content-type")).getOrElse("[no content type]"))
+          log.trace("<<< {}", Option(response.getFirstHeader("Content-length")).getOrElse("[no content length]"))
         }
-        val responseInfo = new ResponseInfo {
-          val resultCode = response.getStatusLine.getStatusCode
-          // I am *fairly* sure (from code-diving) that the value field of a header
-          // parsed from a response will never be null.
-          def headers(name: String) = response.getHeaders(name).map(_.getValue)
-          lazy val headerNames = response.getAllHeaders.iterator.map(_.getName.toLowerCase).toSet
+
+        val entity = response.getEntity
+        val content = if(entity != null) scope.open(entity.getContent()) else EmptyInputStream
+        new RawResponse with Closeable {
+          val eofWatcher = new EOFWatchingInputStream(content)
+          val body = CatchingInputStream(new BufferedInputStream(eofWatcher)) {
+            case e: SocketException if e.getMessage == "Socket closed" =>
+              probablyAborted(e)
+            case e: InterruptedIOException if e.getMessage == "Connection already shutdown" =>
+              probablyAborted(e)
+            case e: SSLException =>
+              probablyAborted(e)
+            case e: java.net.SocketTimeoutException =>
+              receiveTimeout()
+          }
+          val responseInfo = new ResponseInfo {
+            val resultCode = response.getStatusLine.getStatusCode
+            // I am *fairly* sure (from code-diving) that the value field of a header
+            // parsed from a response will never be null.
+            def headers(name: String) = response.getHeaders(name).map(_.getValue)
+            lazy val headerNames = response.getAllHeaders.iterator.map(_.getName.toLowerCase).toSet
+          }
+          def close() {
+            if(!eofWatcher.eofReached) req.abort()
+            scope.close()
+          }
         }
-        f((responseInfo, catchingInputStream))
       } catch {
-        case e: Exception =>
-          req.abort()
-          throw e
-      } finally {
-        content.close()
+        case t: Throwable =>
+          try { req.abort() }
+          catch { case t2: Throwable => t2.addSuppressed(t) }
+          throw t
       }
+    } catch {
+      case t: Throwable =>
+        try { scope.close() }
+        catch { case t2: Throwable => t.addSuppressed(t2) }
+        throw t
     }
   }
 
-  def executeRaw(req: SimpleHttpRequest): Managed[RawResponse] = {
+  def executeRawUnmanaged(req: SimpleHttpRequest): RawResponse with Closeable = {
     log.trace(">>> {}", req)
     req match {
       case bodyless: BodylessHttpRequest => processBodyless(bodyless)
@@ -206,54 +256,44 @@ class HttpClientHttpClient(livenessChecker: LivenessChecker,
       throw new IllegalArgumentException("No method in request")
   }
 
-  def processBodyless(req: BodylessHttpRequest) = new SimpleArm[RawResponse] {
-    def flatMap[A](f: RawResponse => A): A = {
-      init()
-      val op = bodylessOp(req)
-      send(op, req.builder.timeoutMS, pingTarget(req), f)
-    }
+  def processBodyless(req: BodylessHttpRequest): RawResponse with Closeable = {
+    init()
+    val op = bodylessOp(req)
+    send(op, req.builder.timeoutMS, pingTarget(req))
   }
 
-  def processForm(req: FormHttpRequest): Managed[RawResponse] = new SimpleArm[RawResponse] {
-    def flatMap[A](f: RawResponse => A): A = {
-      init()
-      val sendEntity = new InputStreamEntity(new ReaderInputStream(new FormReader(req.contents), StandardCharsets.UTF_8), -1, formContentType)
-      sendEntity.setChunked(true)
-      val op = bodyEnclosingOp(req)
-      op.setEntity(sendEntity)
-      send(op, req.builder.timeoutMS, pingTarget(req), f)
-    }
+  def processForm(req: FormHttpRequest): RawResponse with Closeable = {
+    init()
+    val sendEntity = new InputStreamEntity(new ReaderInputStream(new FormReader(req.contents), StandardCharsets.UTF_8), -1, formContentType)
+    sendEntity.setChunked(true)
+    val op = bodyEnclosingOp(req)
+    op.setEntity(sendEntity)
+    send(op, req.builder.timeoutMS, pingTarget(req))
   }
 
-  def processFile(req: FileHttpRequest): Managed[RawResponse] = new SimpleArm[RawResponse] {
-    def flatMap[A](f: RawResponse => A): A = {
-      init()
-      val sendEntity = new MultipartEntity
-      sendEntity.addPart(req.field, new InputStreamBody(req.contents, req.contentType, req.file))
-      val op = bodyEnclosingOp(req)
-      op.setEntity(sendEntity)
-      send(op, req.builder.timeoutMS, pingTarget(req), f)
-    }
+  def processFile(req: FileHttpRequest): RawResponse with Closeable = {
+    init()
+    val sendEntity = new MultipartEntity
+    sendEntity.addPart(req.field, new InputStreamBody(req.contents, req.contentType, req.file))
+    val op = bodyEnclosingOp(req)
+    op.setEntity(sendEntity)
+    send(op, req.builder.timeoutMS, pingTarget(req))
   }
 
-  def processBlob(req: BlobHttpRequest): Managed[RawResponse] = new SimpleArm[RawResponse] {
-    def flatMap[A](f: RawResponse => A): A = {
-      init()
-      val sendEntity = new InputStreamEntity(req.contents, -1, ContentType.create(req.contentType))
-      val op = bodyEnclosingOp(req)
-      op.setEntity(sendEntity)
-      send(op, req.builder.timeoutMS, pingTarget(req), f)
-    }
+  def processBlob(req: BlobHttpRequest): RawResponse with Closeable = {
+    init()
+    val sendEntity = new InputStreamEntity(req.contents, -1, ContentType.create(req.contentType))
+    val op = bodyEnclosingOp(req)
+    op.setEntity(sendEntity)
+    send(op, req.builder.timeoutMS, pingTarget(req))
   }
 
-  def processJson(req: JsonHttpRequest): Managed[RawResponse] = new SimpleArm[RawResponse] {
-    def flatMap[A](f: RawResponse => A): A = {
-      init()
-      val sendEntity = new InputStreamEntity(new ReaderInputStream(new JsonEventIteratorReader(req.contents), StandardCharsets.UTF_8), -1, jsonContentType)
-      sendEntity.setChunked(true)
-      val op = bodyEnclosingOp(req)
-      op.setEntity(sendEntity)
-      send(op, req.builder.timeoutMS, pingTarget(req), f)
-    }
+  def processJson(req: JsonHttpRequest): RawResponse with Closeable = {
+    init()
+    val sendEntity = new InputStreamEntity(new ReaderInputStream(new JsonEventIteratorReader(req.contents), StandardCharsets.UTF_8), -1, jsonContentType)
+    sendEntity.setChunked(true)
+    val op = bodyEnclosingOp(req)
+    op.setEntity(sendEntity)
+    send(op, req.builder.timeoutMS, pingTarget(req))
   }
 }
