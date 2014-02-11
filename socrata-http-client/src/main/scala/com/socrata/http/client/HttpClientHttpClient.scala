@@ -22,6 +22,8 @@ import com.socrata.http.client.exceptions._
 import com.socrata.http.common.util.TimeoutManager
 import com.socrata.http.`-impl`.NoopCloseable
 import com.socrata.http.client.`-impl`._
+import org.apache.http.cookie.Cookie
+import java.{util => ju}
 
 /** Implementation of [[com.socrata.http.client.HttpClient]] based on Apache HttpComponents. */
 class HttpClientHttpClient(livenessChecker: LivenessChecker,
@@ -32,12 +34,14 @@ class HttpClientHttpClient(livenessChecker: LivenessChecker,
 {
   import HttpClient._
 
-  private[this] val httpclient = locally {
+  private[this] val connectionManager = locally {
     val connManager = new PoolingClientConnectionManager
     connManager.setDefaultMaxPerRoute(Int.MaxValue)
     connManager.setMaxTotal(Int.MaxValue)
-    new DefaultHttpClient(connManager)
+    connManager
   }
+  private[this] val httpclient = new DefaultHttpClient(connectionManager)
+
   @volatile private[this] var initialized = false
   private val log = org.slf4j.LoggerFactory.getLogger(classOf[HttpClientHttpClient])
   private val timeoutManager = new TimeoutManager(executor)
@@ -55,6 +59,7 @@ class HttpClientHttpClient(livenessChecker: LivenessChecker,
             HttpProtocolParams.setUseExpectContinue(params, false)
         }
         timeoutManager.start()
+        httpclient.setCookieStore(HttpClientHttpClient.NullCookieStore)
         initialized = true
       }
     }
@@ -295,5 +300,14 @@ class HttpClientHttpClient(livenessChecker: LivenessChecker,
     val op = bodyEnclosingOp(req)
     op.setEntity(sendEntity)
     send(op, req.builder.timeoutMS, pingTarget(req))
+  }
+}
+
+object HttpClientHttpClient {
+  private object NullCookieStore extends org.apache.http.client.CookieStore {
+    override def clear(): Unit = {}
+    override def clearExpired(date: ju.Date): Boolean = false
+    override def getCookies: ju.List[Cookie] = ju.Collections.emptyList[Cookie]
+    override def addCookie(cookie: Cookie): Unit = {}
   }
 }
