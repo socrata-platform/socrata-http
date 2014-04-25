@@ -5,13 +5,10 @@ import java.io._
 import java.net._
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.Executor
-import javax.net.ssl.SSLException
+import javax.net.ssl.{SSLContext, SSLException}
 
-import org.apache.http.impl.client.DefaultHttpClient
-import org.apache.http.entity.mime.MultipartEntity
-import org.apache.http.entity.mime.content.InputStreamBody
-import org.apache.http.impl.conn.PoolingClientConnectionManager
-import org.apache.http.params.{CoreProtocolPNames, HttpProtocolParams, HttpConnectionParams}
+import org.apache.http.impl.client.{DefaultConnectionKeepAliveStrategy, HttpClients}
+import org.apache.http.impl.conn.PoolingHttpClientConnectionManager
 import org.apache.http.conn.ConnectTimeoutException
 import org.apache.http.client.methods._
 import org.apache.http.entity._
@@ -22,25 +19,42 @@ import com.socrata.http.client.exceptions._
 import com.socrata.http.common.util.TimeoutManager
 import com.socrata.http.`-impl`.NoopCloseable
 import com.socrata.http.client.`-impl`._
-import org.apache.http.cookie.Cookie
-import java.{util => ju}
+import org.apache.http.conn.ssl.SSLConnectionSocketFactory
+import org.apache.http.client.config.RequestConfig
+import org.apache.http.entity.mime.MultipartEntityBuilder
+import scala.util.{Success, Try}
+import org.apache.http.impl.execchain.RequestAbortedException
 
 /** Implementation of [[com.socrata.http.client.HttpClient]] based on Apache HttpComponents. */
 class HttpClientHttpClient(livenessChecker: LivenessChecker,
                            executor: Executor,
-                           continueTimeout: Option[Int] = None,
-                           userAgent: String = "HttpClientHttpClient")
+                           continueTimeout: Option[Int] = None, // no longer used!  Here only for source compatibility
+                           userAgent: String = "HttpClientHttpClient",
+                           sslContext: SSLContext = SSLContext.getDefault,
+                           contentCompression: Boolean = false)
   extends HttpClient
 {
   import HttpClient._
 
   private[this] val connectionManager = locally {
-    val connManager = new PoolingClientConnectionManager
+    val connManager = new PoolingHttpClientConnectionManager()
     connManager.setDefaultMaxPerRoute(Int.MaxValue)
     connManager.setMaxTotal(Int.MaxValue)
     connManager
   }
-  private[this] val httpclient = new DefaultHttpClient(connectionManager)
+  private[this] val httpclient = locally {
+    val builder =
+      HttpClients.custom().
+        disableAutomaticRetries().
+        disableCookieManagement().
+        disableAuthCaching().
+        setConnectionManager(connectionManager).
+        setUserAgent(userAgent).
+        setKeepAliveStrategy(DefaultConnectionKeepAliveStrategy.INSTANCE).
+        setSSLSocketFactory(new SSLConnectionSocketFactory(sslContext))
+    if(!contentCompression) builder.disableContentCompression()
+    builder.build()
+  }
 
   @volatile private[this] var initialized = false
   private val log = org.slf4j.LoggerFactory.getLogger(classOf[HttpClientHttpClient])
@@ -49,17 +63,7 @@ class HttpClientHttpClient(livenessChecker: LivenessChecker,
   private def init() {
     def reallyInit() = synchronized {
       if(!initialized) {
-        val params = httpclient.getParams
-        HttpProtocolParams.setUserAgent(params, userAgent)
-        continueTimeout match {
-          case Some(timeout) =>
-            HttpProtocolParams.setUseExpectContinue(params, true)
-            params.setIntParameter(CoreProtocolPNames.WAIT_FOR_CONTINUE, timeout) // no option for this one?
-          case None =>
-            HttpProtocolParams.setUseExpectContinue(params, false)
-        }
         timeoutManager.start()
-        httpclient.setCookieStore(HttpClientHttpClient.NullCookieStore)
         initialized = true
       }
     }
@@ -68,7 +72,7 @@ class HttpClientHttpClient(livenessChecker: LivenessChecker,
 
   def close() {
     try {
-      httpclient.getConnectionManager.shutdown()
+      connectionManager.shutdown()
     } finally {
       timeoutManager.close()
     }
@@ -143,7 +147,7 @@ class HttpClientHttpClient(livenessChecker: LivenessChecker,
       }
 
       val response = try {
-        httpclient.execute(req)
+        scope.open(httpclient.execute(req))
       } catch {
         case _: ConnectTimeoutException =>
           connectTimeout()
@@ -153,14 +157,14 @@ class HttpClientHttpClient(livenessChecker: LivenessChecker,
           throw e.getCause
         case e: SocketException if e.getMessage == "Socket closed" =>
           probablyAborted(e)
-        case e: InterruptedIOException if e.getMessage == "Connection already shutdown" =>
+        case _: SocketTimeoutException =>
+          receiveTimeout()
+        case e: InterruptedIOException =>
           probablyAborted(e)
         case e: IOException if e.getMessage == "Request already aborted" =>
           probablyAborted(e)
         case e: SSLException =>
           probablyAborted(e)
-        case _: SocketTimeoutException =>
-          receiveTimeout()
       }
 
       try {
@@ -171,18 +175,25 @@ class HttpClientHttpClient(livenessChecker: LivenessChecker,
         }
 
         val entity = response.getEntity
-        val content = if(entity != null) scope.open(entity.getContent()) else EmptyInputStream
+        val content = if(entity != null) entity.getContent() else EmptyInputStream
         new RawResponse with Closeable {
-          val eofWatcher = new EOFWatchingInputStream(content)
-          val body = CatchingInputStream(new BufferedInputStream(eofWatcher)) {
+          var exceptionWhileReading = false
+          val body = CatchingInputStream(new BufferedInputStream(content)) {
             case e: SocketException if e.getMessage == "Socket closed" =>
+              exceptionWhileReading = true
               probablyAborted(e)
             case e: InterruptedIOException if e.getMessage == "Connection already shutdown" =>
+              exceptionWhileReading = true
               probablyAborted(e)
             case e: SSLException =>
+              exceptionWhileReading = true
               probablyAborted(e)
             case e: java.net.SocketTimeoutException =>
+              exceptionWhileReading = true
               receiveTimeout()
+            case e: Throwable =>
+              exceptionWhileReading = true
+              throw e
           }
           val responseInfo = new ResponseInfo {
             val resultCode = response.getStatusLine.getStatusCode
@@ -192,7 +203,17 @@ class HttpClientHttpClient(livenessChecker: LivenessChecker,
             lazy val headerNames = response.getAllHeaders.iterator.map(_.getName.toLowerCase).toSet
           }
           def close() {
-            if(!eofWatcher.eofReached) req.abort()
+            // So... there is no way to ask "have we consumed the entire response?"
+            // even though in almost all cases HTTP responses are framed by either
+            // content-length or transfer-encoding.  So we'll try to read a single
+            // extra byte to see if we've reached EOF -- if not, we'll assume there's
+            // a nontrivial amount to go, and hard-abort the connection.
+            //
+            // If the connection is aborted, it cannot be kept alive to be re-used,
+            // which is why we don't just abort unconditionally.
+            if(exceptionWhileReading || Try(body.read()) != Success(-1)) {
+              Try(req.abort()) // ignore any exceptions, we're closing anyway
+            }
             scope.close()
           }
         }
@@ -228,13 +249,15 @@ class HttpClientHttpClient(livenessChecker: LivenessChecker,
 
   def setupOp(req: SimpleHttpRequest, op: HttpRequestBase) {
     for((k, v) <- req.builder.headers) op.addHeader(k, v)
-    val params = op.getParams
+    val config = RequestConfig.custom()
+    config.setExpectContinueEnabled(false)
     req.builder.connectTimeoutMS.foreach { ms =>
-      HttpConnectionParams.setConnectionTimeout(params, ms)
+      config.setConnectTimeout(ms)
     }
     req.builder.receiveTimeoutMS.foreach { ms =>
-      HttpConnectionParams.setSoTimeout(params, ms)
+      config.setSocketTimeout(ms)
     }
+    op.setConfig(config.build())
   }
 
   def bodylessOp(req: SimpleHttpRequest): HttpRequestBase = req.builder.method match {
@@ -278,8 +301,7 @@ class HttpClientHttpClient(livenessChecker: LivenessChecker,
 
   def processFile(req: FileHttpRequest): RawResponse with Closeable = {
     init()
-    val sendEntity = new MultipartEntity
-    sendEntity.addPart(req.field, new InputStreamBody(req.contents, req.contentType, req.file))
+    val sendEntity = MultipartEntityBuilder.create().addBinaryBody(req.field, req.contents, ContentType.parse(req.contentType), req.file).build()
     val op = bodyEnclosingOp(req)
     op.setEntity(sendEntity)
     send(op, req.builder.timeoutMS, pingTarget(req))
@@ -300,14 +322,5 @@ class HttpClientHttpClient(livenessChecker: LivenessChecker,
     val op = bodyEnclosingOp(req)
     op.setEntity(sendEntity)
     send(op, req.builder.timeoutMS, pingTarget(req))
-  }
-}
-
-object HttpClientHttpClient {
-  private object NullCookieStore extends org.apache.http.client.CookieStore {
-    override def clear(): Unit = {}
-    override def clearExpired(date: ju.Date): Boolean = false
-    override def getCookies: ju.List[Cookie] = ju.Collections.emptyList[Cookie]
-    override def addCookie(cookie: Cookie): Unit = {}
   }
 }
