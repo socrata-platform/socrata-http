@@ -7,6 +7,7 @@ import java.net.URL
 import implicits._
 import com.socrata.http.server.util.{EntityTagRenderer, WeakEntityTag, StrongEntityTag, EntityTag}
 import org.apache.commons.codec.binary.Base64
+import com.socrata.http.server.`-impl`.TroubleUnignoringWriter
 
 object responses {
   def quotedString(s: String) = "\"" + s.replaceAll("\"", "\\\"") + "\""
@@ -27,7 +28,7 @@ object responses {
     }
   }
 
-  def Write(f: Writer => Unit) = r { resp => f(resp.getWriter) }
+  def Write(f: Writer => Unit) = r { resp => f(new TroubleUnignoringWriter(resp.getWriter)) }
   def Stream(f: OutputStream => Unit) = r { resp => f(resp.getOutputStream) }
   def Content(content: String) = {
     require(content ne null)
