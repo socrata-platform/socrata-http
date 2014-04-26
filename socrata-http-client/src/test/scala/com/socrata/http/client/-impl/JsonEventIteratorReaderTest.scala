@@ -1,7 +1,6 @@
 package com.socrata.http.client.`-impl`
 
-import org.scalatest.FunSuite
-import org.scalatest.matchers.MustMatchers
+import org.scalatest.{FunSuite, MustMatchers}
 import org.scalatest.prop.PropertyChecks
 import java.io.Reader
 import com.rojoma.json.ast.JValue

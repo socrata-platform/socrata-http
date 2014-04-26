@@ -1,7 +1,6 @@
 package com.socrata.http.server.util
 
-import org.scalatest.{Assertions, FunSuite}
-import org.scalatest.matchers.MustMatchers
+import org.scalatest.{Assertions, FunSuite, MustMatchers}
 import org.scalatest.prop.PropertyChecks
 
 class EntityTagTest extends FunSuite with MustMatchers with Assertions with PropertyChecks {

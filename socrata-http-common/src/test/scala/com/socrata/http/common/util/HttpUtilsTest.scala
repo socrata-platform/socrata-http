@@ -1,7 +1,6 @@
 package com.socrata.http.common.util
 
-import org.scalatest.matchers.MustMatchers
-import org.scalatest.FunSuite
+import org.scalatest.{MustMatchers, FunSuite}
 
 class HttpUtilsTest extends FunSuite with MustMatchers {
   test("parseAccept can parse the examples from RFC2616") {

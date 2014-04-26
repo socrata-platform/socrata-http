@@ -1,7 +1,6 @@
 package com.socrata.http.util
 
-import org.scalatest.matchers.ShouldMatchers
-import org.scalatest.WordSpec
+import org.scalatest.{ShouldMatchers, WordSpec}
 import java.util.Date
 import com.socrata.http.server.util
 

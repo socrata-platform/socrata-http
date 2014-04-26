@@ -1,7 +1,6 @@
 package com.socrata.http.server.routing
 
-import org.scalatest.matchers.MustMatchers
-import org.scalatest.FunSuite
+import org.scalatest.{FunSuite,MustMatchers}
 
 import com.socrata.http.server.{Service, HttpService, HttpResponse}
 import javax.servlet.http.HttpServletRequest

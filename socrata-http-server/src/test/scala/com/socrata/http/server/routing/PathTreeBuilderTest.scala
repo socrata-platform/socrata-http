@@ -1,7 +1,6 @@
 package com.socrata.http.server.routing
 
-import org.scalatest.FunSuite
-import org.scalatest.matchers.MustMatchers
+import org.scalatest.{MustMatchers, FunSuite}
 import scala.collection.LinearSeq
 
 class PathTreeBuilderTest extends FunSuite with MustMatchers {

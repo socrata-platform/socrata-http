@@ -1,14 +1,13 @@
 package com.socrata.http.`-impl`
 
-import org.scalatest.FunSuite
-import org.scalatest.matchers.MustMatchers
+import org.scalatest.{FunSuite,MustMatchers}
 import org.scalatest.prop.PropertyChecks
 
 class IntrusivePriorityQueueTest extends FunSuite with MustMatchers with PropertyChecks {
   class Node extends IntrusivePriorityQueueNode
 
   test("an empty queue raises NoSuchElementException when popped") {
-    evaluating(new IntrusivePriorityQueue[Nothing].pop()) must produce[NoSuchElementException]
+    a [NoSuchElementException] must be thrownBy { new IntrusivePriorityQueue[Nothing].pop() }
   }
 
   test("Adding elements produces a valid heap") {

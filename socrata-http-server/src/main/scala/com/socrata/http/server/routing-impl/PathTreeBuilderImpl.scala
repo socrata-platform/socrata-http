@@ -138,7 +138,8 @@ object PathTreeBuilderImpl {
       val ssName = newTermName(c.fresh("ss"))
       val itName = newTermName(c.fresh("id"))
       val args = types.map { t => q"$itName.next().asInstanceOf[$t]" }
-      q"val $typeifyName: _root_.scala.collection.immutable.List[_root_.scala.Any] => $uTree = { $ssName => val $itName = $ssName.iterator; $fName(..$args) }"
+      val paramType = tq"_root_.scala.collection.immutable.List[_root_.scala.Any]"
+      q"val $typeifyName: $paramType => $uTree = { ($ssName: $paramType) => val $itName = $ssName.iterator; $fName(..$args) }"
     }
 
     val terminus = newTermName(c.fresh("terminus"))

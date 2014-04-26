@@ -1,10 +1,9 @@
 package com.socrata.http.client.`-impl`
 
 import scala.collection.JavaConverters._
-import org.scalatest.FunSuite
+import org.scalatest.{FunSuite, MustMatchers}
 import scala.util.Random
 import java.io._
-import org.scalatest.matchers.MustMatchers
 import org.scalatest.exceptions.ModifiableMessage
 import java.nio.charset.{StandardCharsets, Charset}
 import org.scalatest.concurrent.Timeouts

@@ -1,7 +1,6 @@
 package com.socrata.http.server.routing
 
-import org.scalatest.FunSuite
-import org.scalatest.matchers.MustMatchers
+import org.scalatest.{FunSuite,MustMatchers}
 
 class TopLevelNonSingletonResourceWithGetAndPost extends SimpleResource {
   override def get = ???

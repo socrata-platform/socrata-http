@@ -1,7 +1,6 @@
 package com.socrata.http.server.routing
 
-import org.scalatest.matchers.MustMatchers
-import org.scalatest.FunSuite
+import org.scalatest.{MustMatchers, FunSuite}
 import org.scalatest.prop.PropertyChecks
 
 class ExtractorTest extends FunSuite with MustMatchers with PropertyChecks {
