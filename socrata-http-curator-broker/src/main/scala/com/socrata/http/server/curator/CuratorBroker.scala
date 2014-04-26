@@ -2,7 +2,7 @@ package com.socrata.http.server.curator
 
 import scala.language.reflectiveCalls
 import com.socrata.http.server.ServerBroker
-import com.netflix.curator.x.discovery.{UriSpec, ServiceInstance, ServiceDiscovery}
+import org.apache.curator.x.discovery.{UriSpec, ServiceInstance, ServiceDiscovery}
 
 class CuratorBroker[T](serviceDiscovery: ServiceDiscovery[T], address: String, serviceName: String, auxData: Option[T]) extends ServerBroker {
   type Cookie = ServiceInstance[T]
