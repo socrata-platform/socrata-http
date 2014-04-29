@@ -28,7 +28,7 @@ object Dependencies {
 
   val simpleArm = "com.rojoma" %% "simple-arm" % "[1.1.10,2.0.0)"
 
-  val slf4jVersion = "1.7.5"
+  val slf4jVersion = "1.7.7"
   val jclOverSlf4j = "org.slf4j" % "jcl-over-slf4j" % slf4jVersion
   val slf4jApi = "org.slf4j" % "slf4j-api" % slf4jVersion
   val slf4jSimple = "org.slf4j" % "slf4j-simple" % slf4jVersion
