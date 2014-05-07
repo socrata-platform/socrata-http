@@ -230,7 +230,6 @@ private[client] final class LivenessCheckerImpl(intervalMS: Long, rangeMS: Int, 
           log.warn("Exception during unlimited select", e)
           return
       }
-      startJobs()
     } else {
       val head = pingQueue.head
       val timeout = head.waitUntil - System.currentTimeMillis()
@@ -247,14 +246,14 @@ private[client] final class LivenessCheckerImpl(intervalMS: Long, rangeMS: Int, 
         case e: IOException =>
           log.warn("Exception during select", e)
       }
-
-      // there is only one key
-      selector.selectedKeys.clear()
-
-      startJobs()
-      processPackets()
-      clearHeadOfQueue()
     }
+
+    // there is only one key
+    selector.selectedKeys.clear()
+
+    startJobs()
+    processPackets()
+    clearHeadOfQueue()
   }
 
   private def processRxPacket(from: InetSocketAddress) {
