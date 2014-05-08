@@ -2,6 +2,8 @@ package com.socrata.http.common.util
 
 import com.rojoma.json.ast.JString
 import java.lang.{StringBuilder => JStringBuilder}
+import org.joda.time.DateTime
+import org.joda.time.format.DateTimeFormat
 
 class HttpHeaderParseException(msg: String) extends Exception(msg)
 
@@ -244,6 +246,8 @@ sealed trait HttpUtils
 object HttpUtils {
   private[this] val log = org.slf4j.LoggerFactory.getLogger(classOf[HttpUtils])
 
+  val HttpDateFormat = DateTimeFormat.forPattern("E, dd MMM YYYY HH:mm:ss 'GMT'")
+
   def isToken(s: String): Boolean = {
     if(s.isEmpty) return false
 
@@ -330,6 +334,8 @@ object HttpUtils {
     }
     b.result()
   }
+
+  def parseHttpDate(dateHeader: String): DateTime = HttpDateFormat.parseDateTime(dateHeader)
 
   def parseAccept(acceptHeader: String): Seq[MediaRange] = {
     // An "Accept" header is 0 or more of comma-separated media-ranges.

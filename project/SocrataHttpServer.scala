@@ -8,6 +8,8 @@ object SocrataHttpServer {
     libraryDependencies <++= (scalaVersion) { sv =>
       Seq(
         javaxServlet % "provided",
+        jodaConvert,
+        jodaTime,
         scalaReflect(sv),
         simpleArm,
         slf4jApi,

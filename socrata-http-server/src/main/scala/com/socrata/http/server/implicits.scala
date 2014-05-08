@@ -8,6 +8,8 @@ import com.socrata.http.server.`-impl`.ChainedHttpResponse
 import com.socrata.http.common.util.{HttpUtils, ContentNegotiation}
 import com.socrata.http.server.util.PreconditionParser
 
+import org.joda.time.{DateTime, DateTimeZone}
+
 object implicits {
   implicit def httpResponseToChainedResponse(resp: HttpResponse) = resp match {
     case c: ChainedHttpResponse => c
@@ -40,6 +42,10 @@ object implicits {
 
     def precondition = PreconditionParser.precondition(underlying)
 
+    def lastModified: Option[DateTime] = dateTimeHeader("Last-Modified")
+
+    def dateTimeHeader(name: String): Option[DateTime] = header(name).map(HttpUtils.parseHttpDate)
+
     def negotiateContent(implicit contentNegotiation: ContentNegotiation) = {
       val filename = requestPath.last
       val dotpos = filename.lastIndexOf('.')
@@ -51,5 +57,17 @@ object implicits {
       if(result eq null) throw new IllegalStateException("Container does not allow access to headers")
       result
     }
+  }
+  /**
+   * An extension of the Joda DateTime class with convenience methods related to HTTP.
+   * @param underlying Underlying DateTime object.
+   */
+  implicit class DateTimeWithExtensions(val underlying: DateTime) extends AnyVal {
+
+    /**
+     * Renders this DateTime object as an HTTP 1.1 Date String.
+     * @return HTTP Date String, ex. "Thu, 08 May 2014 9:36:23 GMT"
+     */
+    def toHttpDate: String = underlying.toDateTime(DateTimeZone.UTC).toString(HttpUtils.HttpDateFormat)
   }
 }

@@ -8,6 +8,8 @@ object SocrataHttpCommon {
     libraryDependencies ++= Seq(
       commonsCodec,
       commonsLang,
+      jodaConvert,
+      jodaTime,
       slf4jApi,
       simpleArm,
       rojomaJson,

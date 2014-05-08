@@ -20,6 +20,9 @@ object Dependencies {
 
   val rojomaJson = "com.rojoma" %% "rojoma-json" % "[2.4.3, 3.0.0)"
 
+  val jodaConvert = "org.joda" % "joda-convert" % "1.2"
+  val jodaTime = "joda-time" % "joda-time" % "2.1"
+
   val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.11.3"
 
   val scalaTest = "org.scalatest" %% "scalatest" % "2.1.4"
