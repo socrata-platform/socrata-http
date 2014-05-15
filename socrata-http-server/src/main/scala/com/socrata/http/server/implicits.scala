@@ -44,7 +44,15 @@ object implicits {
 
     def lastModified: Option[DateTime] = dateTimeHeader("Last-Modified")
 
-    def dateTimeHeader(name: String): Option[DateTime] = header(name).map(HttpUtils.parseHttpDate)
+    def dateTimeHeader(name: String, ignoreParseErrors: Boolean = true): Option[DateTime] = {
+      try {
+        header(name).map(HttpUtils.parseHttpDate)
+      } catch {
+        // In most cases, if an incorrectly-formatted date header is set, HTTP 1.1 dictates to simply ignore it
+        case ex: IllegalArgumentException if ignoreParseErrors =>
+          None
+      }
+    }
 
     def negotiateContent(implicit contentNegotiation: ContentNegotiation) = {
       val filename = requestPath.last
