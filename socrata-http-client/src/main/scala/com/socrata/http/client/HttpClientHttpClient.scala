@@ -251,11 +251,17 @@ class HttpClientHttpClient(livenessChecker: LivenessChecker,
     for((k, v) <- req.builder.headers) op.addHeader(k, v)
     val config = RequestConfig.custom()
     config.setExpectContinueEnabled(false)
-    req.builder.connectTimeoutMS.foreach { ms =>
-      config.setConnectTimeout(ms)
+    req.builder.connectTimeoutMS match {
+      case Some(ms) =>
+        config.setConnectTimeout(ms max 1) // if <= 0, treat it as 1 so that you get the shortest possible timeout
+      case None =>
+        config.setConnectTimeout(0)
     }
-    req.builder.receiveTimeoutMS.foreach { ms =>
-      config.setSocketTimeout(ms)
+    req.builder.receiveTimeoutMS match {
+      case Some(ms) =>
+        config.setSocketTimeout(ms max 1) // if <= 0, treat it as 1 so that you get the shortest possible timeout
+      case None =>
+        config.setSocketTimeout(0)
     }
     op.setConfig(config.build())
   }
