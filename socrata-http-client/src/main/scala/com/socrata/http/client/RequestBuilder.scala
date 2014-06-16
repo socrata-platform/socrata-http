@@ -73,7 +73,7 @@ class RequestBuilder private (val host: String,
 
   def addHeader(header: (String, String)) = copy(headers = headers.toVector :+ header)
 
-  def addHeaders(headers: Iterable[(String, String)]) = copy(headers = headers.toVector ++ headers)
+  def addHeaders(newHeaders: Iterable[(String, String)]) = copy(headers = headers.toVector ++ newHeaders)
 
   /** Sets the cookies for this request.
     *
@@ -260,7 +260,7 @@ object RequestBuilder {
     val bs = s.getBytes("UTF-8")
     var i = 0
     while(i != bs.length) {
-      val b = bs(i & 0xff)
+      val b = bs(i & 0xff) & 0xff
       if(byteAllowed(b)) {
         sb.append(b.toChar)
       } else {
