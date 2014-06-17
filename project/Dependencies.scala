@@ -36,5 +36,5 @@ object Dependencies {
   val slf4jApi = "org.slf4j" % "slf4j-api" % slf4jVersion
   val slf4jSimple = "org.slf4j" % "slf4j-simple" % slf4jVersion
 
-  val socrataUtils = "com.socrata" %% "socrata-utils" % "[0.7.0,1.0.0)"
+  val socrataUtils = "com.socrata" %% "socrata-utils" % "[0.8.0,1.0.0)"
 }
