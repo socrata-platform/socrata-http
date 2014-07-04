@@ -374,7 +374,10 @@ object RequestBuilder {
 
     sb.append(if(secure) "https" else "http")
     sb.append("://")
-    sb.append(host)
+
+    if(host.indexOf(':') == -1 || (host.startsWith("[") && host.endsWith("]"))) sb.append(host)
+    else sb.append('[').append(host).append(']')
+
     sb.append(":")
     sb.append(port)
     appendPath()
