@@ -178,7 +178,8 @@ class StandardResponse(responseInfo: ResponseInfo, rawInputStream: InputStream) 
 
   lazy val isJson: Boolean =
     contentType match {
-      case Some(ct) => ct.getBaseType == HttpClient.jsonContentTypeBase
+      case Some(ct) => ct.getBaseType == HttpClient.jsonContentTypeBase ||
+                       ct.getBaseType == HttpClient.geoJsonContentTypeBase
       case None => false
     }
 

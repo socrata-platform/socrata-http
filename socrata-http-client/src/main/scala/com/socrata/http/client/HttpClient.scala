@@ -53,6 +53,8 @@ trait HttpClient extends Closeable {
 object HttpClient {
   val jsonContentTypeBase = "application/json"
   val jsonContentType = ContentType.create(jsonContentTypeBase, StandardCharsets.UTF_8)
+  val geoJsonContentTypeBase = "application/vnd.geo+json"
+  val geoJsonContentType = ContentType.create(geoJsonContentTypeBase, StandardCharsets.UTF_8)
   val formContentTypeBase = "application/x-www-form-urlencoded"
   val formContentType = ContentType.create(formContentTypeBase, StandardCharsets.UTF_8)
 }
