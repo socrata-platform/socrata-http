@@ -73,9 +73,11 @@ abstract class AbstractSocrataServerJetty(handler: Handler, options: AbstractSoc
     var oldSIGTERM: SignalHandler = null
     var oldSIGINT: SignalHandler = null
     try {
-      log.info("Hooking SIGTERM and SIGINT")
-      oldSIGTERM = Signal.handle(SIGTERM, signalHandler)
-      oldSIGINT = Signal.handle(SIGINT, signalHandler)
+      if(hookSignals) {
+        log.info("Hooking SIGTERM and SIGINT")
+        oldSIGTERM = Signal.handle(SIGTERM, signalHandler)
+        oldSIGINT = Signal.handle(SIGINT, signalHandler)
+      }
 
       log.info("Starting server")
       try {
@@ -93,7 +95,11 @@ abstract class AbstractSocrataServerJetty(handler: Handler, options: AbstractSoc
 
         try {
           log.info("Going to sleep...")
-          signalled.acquire()
+          try {
+            signalled.acquire()
+          } catch {
+            case e: InterruptedException => // ok, we're awake
+          }
           log.info("Awakened!")
         } finally {
           log.info("De-registering with broker")
@@ -124,9 +130,11 @@ abstract class AbstractSocrataServerJetty(handler: Handler, options: AbstractSoc
       log.info("Waiting for the server thread to terminate...")
       server.join()
     } finally {
-      log.info("Un-hooking SIGTERM and SIGINT")
-      if(oldSIGTERM != null) Signal.handle(SIGTERM, oldSIGTERM)
-      if(oldSIGTERM != null) Signal.handle(SIGINT, oldSIGINT)
+      if(hookSignals) {
+        log.info("Un-hooking SIGTERM and SIGINT")
+        if(oldSIGTERM != null) Signal.handle(SIGTERM, oldSIGTERM)
+        if(oldSIGTERM != null) Signal.handle(SIGINT, oldSIGINT)
+      }
     }
 
     log.info("Exiting")
@@ -223,6 +231,9 @@ object AbstractSocrataServerJetty {
 
     val gzipOptions: Option[Gzip.Options]
     def withGzipOptions(gzo: Option[Gzip.Options]): OptT
+
+    val hookSignals: Boolean
+    def withHookSignals(enabled: Boolean): OptT
   }
 
   private case class OptionsImpl(
@@ -232,7 +243,8 @@ object AbstractSocrataServerJetty {
     deregisterWait: FiniteDuration = 5.seconds,
     gracefulShutdownTimeout: Duration = Duration.Inf,
     onFatalException: Throwable => Unit = shutDownJVM,
-    gzipOptions: Option[Gzip.Options] = None
+    gzipOptions: Option[Gzip.Options] = None,
+    hookSignals: Boolean = true
   ) extends Options {
     type OptT = OptionsImpl
 
@@ -243,6 +255,7 @@ object AbstractSocrataServerJetty {
     override def withOnFatalException(callback: Throwable => Unit) = copy(onFatalException = callback)
     override def withGracefulShutdownTimeout(gst: Duration) = copy(gracefulShutdownTimeout = gst)
     override def withGzipOptions(gzo: Option[Gzip.Options]) = copy(gzipOptions = gzo)
+    override def withHookSignals(enabled: Boolean) = copy(hookSignals = enabled)
   }
 
   val defaultOptions: Options = OptionsImpl()
