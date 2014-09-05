@@ -9,7 +9,7 @@ object Dependencies {
 
   val commonsCodec = "commons-codec" % "commons-codec" % "1.8"
 
-  val curatorDiscovery = "org.apache.curator" % "curator-x-discovery" % "2.4.2"
+  val curatorDiscovery = "org.apache.curator" % "curator-x-discovery" % "2.6.0"
 
   val javaxServlet = "javax.servlet" % "javax.servlet-api" % "3.1.0"
 
