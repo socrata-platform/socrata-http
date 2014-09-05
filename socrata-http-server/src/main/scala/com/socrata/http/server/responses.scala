@@ -18,6 +18,7 @@ object responses {
   def Status(code: Int) = r(_.setStatus(code))
   def Header(name: String, value: String) = r(_.setHeader(name, value))
   def ContentType(mime: String) = r(_.setContentType(mime))
+  def ContentLength(length: Long) = r(_.setContentLengthLong(length))
 
   def Location(url: URL) = Header("Location", url.toExternalForm)
 
