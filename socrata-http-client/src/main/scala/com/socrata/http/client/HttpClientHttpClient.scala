@@ -27,19 +27,20 @@ import scala.util.{Success, Try}
 import org.apache.http.impl.execchain.RequestAbortedException
 
 /** Implementation of [[com.socrata.http.client.HttpClient]] based on Apache HttpComponents. */
-class HttpClientHttpClient(options: HttpClientHttpClient.Options)
+class HttpClientHttpClient(executor: Executor, options: HttpClientHttpClient.Options = HttpClientHttpClient.defaultOptions)
   extends HttpClient
 {
   import HttpClient._
   import options._
 
+  @deprecated("Use HttpClientHttpClient.Options instead", since="2.1.0")
   def this(livenessChecker: LivenessChecker,
            executor: Executor,
            continueTimeout: Option[Int] = None, // no longer used!  Here only for source compatibility
            userAgent: String = "HttpClientHttpClient",
            sslContext: SSLContext = SSLContext.getDefault,
            contentCompression: Boolean = false) =
-    this(HttpClientHttpClient.Options(executor).
+    this(executor, HttpClientHttpClient.defaultOptions.
       withLivenessChecker(livenessChecker).
       withUserAgent(userAgent).
       withSSLContext(sslContext).
@@ -342,9 +343,7 @@ class HttpClientHttpClient(options: HttpClientHttpClient.Options)
 }
 
 object HttpClientHttpClient {
-  sealed abstract class Options {
-    val executor: Executor
-
+  abstract class Options {
     val livenessChecker: LivenessChecker
     def withLivenessChecker(lc: LivenessChecker): Options
 
@@ -363,7 +362,6 @@ object HttpClientHttpClient {
   }
 
   private case class OptionsImpl(
-    executor: Executor,
     livenessChecker: LivenessChecker = NoopLivenessChecker,
     userAgent: String = "HttpClientHttpClient",
     sslContext: SSLContext = SSLContext.getDefault,
@@ -377,7 +375,5 @@ object HttpClientHttpClient {
     def withProxy(prx: Option[HttpHost]): Options = copy(proxy = prx)
   }
 
-  object Options {
-    def apply(executor: Executor): Options = OptionsImpl(executor)
-  }
+  val defaultOptions: Options = OptionsImpl()
 }

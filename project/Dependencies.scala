@@ -15,10 +15,11 @@ object Dependencies {
 
   val javaxServlet = "javax.servlet" % "javax.servlet-api" % "3.1.0"
 
-  val jettyVersion = "8.1.13.v20130916"
+  val jettyVersion = "9.2.2.v20140723"
   val jettyJmx = "org.eclipse.jetty" % "jetty-jmx" % jettyVersion
   val jettyServer = "org.eclipse.jetty" % "jetty-server" % jettyVersion
   val jettyServlet = "org.eclipse.jetty" % "jetty-servlet" % jettyVersion
+  val jettyServlets = "org.eclipse.jetty" % "jetty-servlets" % jettyVersion
 
   val rojomaJson = "com.rojoma" %% "rojoma-json" % "[2.4.3, 3.0.0)"
   val rojomaJsonV3 = "com.rojoma" %% "rojoma-json-v3" % "[3.2.0, 4.0.0)"
