@@ -7,6 +7,7 @@ import java.nio.charset.StandardCharsets
 import java.util.concurrent.Executor
 import javax.net.ssl.{SSLContext, SSLException}
 
+import org.apache.http.HttpHost
 import org.apache.http.impl.client.{DefaultConnectionKeepAliveStrategy, HttpClients}
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager
 import org.apache.http.conn.ConnectTimeoutException
@@ -26,15 +27,23 @@ import scala.util.{Success, Try}
 import org.apache.http.impl.execchain.RequestAbortedException
 
 /** Implementation of [[com.socrata.http.client.HttpClient]] based on Apache HttpComponents. */
-class HttpClientHttpClient(livenessChecker: LivenessChecker,
-                           executor: Executor,
-                           continueTimeout: Option[Int] = None, // no longer used!  Here only for source compatibility
-                           userAgent: String = "HttpClientHttpClient",
-                           sslContext: SSLContext = SSLContext.getDefault,
-                           contentCompression: Boolean = false)
+class HttpClientHttpClient(options: HttpClientHttpClient.Options)
   extends HttpClient
 {
   import HttpClient._
+  import options._
+
+  def this(livenessChecker: LivenessChecker,
+           executor: Executor,
+           continueTimeout: Option[Int] = None, // no longer used!  Here only for source compatibility
+           userAgent: String = "HttpClientHttpClient",
+           sslContext: SSLContext = SSLContext.getDefault,
+           contentCompression: Boolean = false) =
+    this(HttpClientHttpClient.Options(executor).
+      withLivenessChecker(livenessChecker).
+      withUserAgent(userAgent).
+      withSSLContext(sslContext).
+      withContentCompression(contentCompression))
 
   private[this] val connectionManager = locally {
     val connManager = new PoolingHttpClientConnectionManager()
@@ -51,7 +60,8 @@ class HttpClientHttpClient(livenessChecker: LivenessChecker,
         setConnectionManager(connectionManager).
         setUserAgent(userAgent).
         setKeepAliveStrategy(DefaultConnectionKeepAliveStrategy.INSTANCE).
-        setSSLSocketFactory(new SSLConnectionSocketFactory(sslContext))
+        setSSLSocketFactory(new SSLConnectionSocketFactory(sslContext)).
+        setProxy(proxy.orNull)
     if(!contentCompression) builder.disableContentCompression()
     builder.build()
   }
@@ -328,5 +338,46 @@ class HttpClientHttpClient(livenessChecker: LivenessChecker,
     val op = bodyEnclosingOp(req)
     op.setEntity(sendEntity)
     send(op, req.builder.timeoutMS, pingTarget(req))
+  }
+}
+
+object HttpClientHttpClient {
+  sealed abstract class Options {
+    val executor: Executor
+
+    val livenessChecker: LivenessChecker
+    def withLivenessChecker(lc: LivenessChecker): Options
+
+    val userAgent: String
+    def withUserAgent(ua: String): Options
+
+    val sslContext: SSLContext
+    def withSSLContext(sc: SSLContext): Options
+
+    val contentCompression: Boolean
+    def withContentCompression(enabled: Boolean): Options
+
+    val proxy: Option[HttpHost]
+    def withProxy(prx: Option[HttpHost]): Options
+    def withProxy(host: String, port: Int): Options = withProxy(Some(new HttpHost(host, port)))
+  }
+
+  private case class OptionsImpl(
+    executor: Executor,
+    livenessChecker: LivenessChecker = NoopLivenessChecker,
+    userAgent: String = "HttpClientHttpClient",
+    sslContext: SSLContext = SSLContext.getDefault,
+    contentCompression: Boolean = false,
+    proxy: Option[HttpHost] = None
+  ) extends Options {
+    def withLivenessChecker(lc: LivenessChecker) = copy(livenessChecker = lc)
+    def withUserAgent(ua: String) = copy(userAgent = ua)
+    def withSSLContext(sc: SSLContext) = copy(sslContext = sc)
+    def withContentCompression(enabled: Boolean) = copy(contentCompression = enabled)
+    def withProxy(prx: Option[HttpHost]): Options = copy(proxy = prx)
+  }
+
+  object Options {
+    def apply(executor: Executor): Options = OptionsImpl(executor)
   }
 }
