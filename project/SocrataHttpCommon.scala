@@ -13,6 +13,9 @@ object SocrataHttpCommon {
       slf4jApi,
       simpleArm,
       rojomaJson,
+      rojomaJsonV3,
+      rojomaJsonJackson,
+      jackson,
       scalaCheck % "test"
     )
   )
