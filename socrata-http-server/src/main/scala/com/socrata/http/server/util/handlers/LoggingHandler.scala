@@ -20,6 +20,7 @@ class LoggingHandler(underlying: HttpService, log: Logger = LoggingHandler.defau
         super.setStatus(x)
         status = x
       }
+      @deprecated(message = "prefer setStatus(Int) or sendError(Int,String)", since = "Servlet 2.1")
       override def setStatus(x: Int, m: String) {
         super.setStatus(x, m)
         status = x
