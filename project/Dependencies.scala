@@ -9,16 +9,21 @@ object Dependencies {
 
   val commonsCodec = "commons-codec" % "commons-codec" % "1.8"
 
-  val curatorDiscovery = "org.apache.curator" % "curator-x-discovery" % "2.4.2"
+  val curatorDiscovery = "org.apache.curator" % "curator-x-discovery" % "2.6.0"
+
+  val jackson = "org.codehaus.jackson" % "jackson-mapper-asl" % "1.9.13"
 
   val javaxServlet = "javax.servlet" % "javax.servlet-api" % "3.1.0"
 
-  val jettyVersion = "8.1.13.v20130916"
+  val jettyVersion = "9.2.2.v20140723"
   val jettyJmx = "org.eclipse.jetty" % "jetty-jmx" % jettyVersion
   val jettyServer = "org.eclipse.jetty" % "jetty-server" % jettyVersion
   val jettyServlet = "org.eclipse.jetty" % "jetty-servlet" % jettyVersion
+  val jettyServlets = "org.eclipse.jetty" % "jetty-servlets" % jettyVersion
 
   val rojomaJson = "com.rojoma" %% "rojoma-json" % "[2.4.3, 3.0.0)"
+  val rojomaJsonV3 = "com.rojoma" %% "rojoma-json-v3" % "[3.2.0, 4.0.0)"
+  val rojomaJsonJackson = "com.rojoma" %% "rojoma-json-v3-jackson" % "[1.0.0, 2.0.0)"
 
   val jodaConvert = "org.joda" % "joda-convert" % "1.2"
   val jodaTime = "joda-time" % "joda-time" % "2.1"
