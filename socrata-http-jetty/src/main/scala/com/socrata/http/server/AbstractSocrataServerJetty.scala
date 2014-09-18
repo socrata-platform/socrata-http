@@ -7,7 +7,9 @@ import sun.misc.Signal
 import sun.misc.SignalHandler
 import java.util.concurrent.Semaphore
 
+import com.codahale.metrics.jetty9.InstrumentedHandler
 import com.socrata.util.logging.LazyStringLogger
+import com.socrata.http.server.util.Metrics
 import org.eclipse.jetty.server.{ServerConnector, Handler, Server}
 import org.eclipse.jetty.servlets.gzip.GzipHandler
 import org.eclipse.jetty.util.component.LifeCycle
@@ -36,7 +38,7 @@ abstract class AbstractSocrataServerJetty(handler: Handler, options: AbstractSoc
 
     val wrappedHandler = List[Handler => Handler](gzipHandler).foldLeft[Handler](handler) { (h, wrapper) => wrapper(h) }
     val countingHandler = new CountingHandler(wrappedHandler, onFatalException)
-    server.setHandler(countingHandler)
+    server.setHandler(if (instrument) getInstrumentedHandler(countingHandler) else countingHandler)
 
     val mbContainer = new org.eclipse.jetty.jmx.MBeanContainer(java.lang.management.ManagementFactory.getPlatformMBeanServer)
     server.addBean(mbContainer)
@@ -77,6 +79,11 @@ abstract class AbstractSocrataServerJetty(handler: Handler, options: AbstractSoc
         log.info("Hooking SIGTERM and SIGINT")
         oldSIGTERM = Signal.handle(SIGTERM, signalHandler)
         oldSIGINT = Signal.handle(SIGINT, signalHandler)
+      }
+
+      if (instrument) {
+        log.info("Starting metrics logging...")
+        Metrics.startMetricsLogging()
       }
 
       log.info("Starting server")
@@ -138,6 +145,12 @@ abstract class AbstractSocrataServerJetty(handler: Handler, options: AbstractSoc
     }
 
     log.info("Exiting")
+  }
+
+  private def getInstrumentedHandler(underlying: Handler): Handler = {
+    val handler = new InstrumentedHandler(Metrics.metricsRegistry)
+    handler.setHandler(underlying)
+    handler
   }
 
   private def gzipHandler(underlying: Handler): Handler = gzipOptions match {
@@ -234,6 +247,10 @@ object AbstractSocrataServerJetty {
 
     val hookSignals: Boolean
     def withHookSignals(enabled: Boolean): OptT
+
+    // Instrument every request using DropWizard Metrics
+    val instrument: Boolean
+    def withInstrument(enabled: Boolean): OptT
   }
 
   private case class OptionsImpl(
@@ -244,7 +261,8 @@ object AbstractSocrataServerJetty {
     gracefulShutdownTimeout: Duration = Duration.Inf,
     onFatalException: Throwable => Unit = shutDownJVM,
     gzipOptions: Option[Gzip.Options] = None,
-    hookSignals: Boolean = true
+    hookSignals: Boolean = true,
+    instrument: Boolean = true
   ) extends Options {
     type OptT = OptionsImpl
 
@@ -256,6 +274,7 @@ object AbstractSocrataServerJetty {
     override def withGracefulShutdownTimeout(gst: Duration) = copy(gracefulShutdownTimeout = gst)
     override def withGzipOptions(gzo: Option[Gzip.Options]) = copy(gzipOptions = gzo)
     override def withHookSignals(enabled: Boolean) = copy(hookSignals = enabled)
+    override def withInstrument(enabled: Boolean) = copy(instrument = enabled)
   }
 
   val defaultOptions: Options = OptionsImpl()

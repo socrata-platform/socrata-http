@@ -53,7 +53,8 @@ object SocrataServerJettyServlet {
     gracefulShutdownTimeout: Duration = AbstractSocrataServerJetty.defaultOptions.gracefulShutdownTimeout,
     onStop: () => Unit = AbstractSocrataServerJetty.defaultOptions.onStop,
     port: Int = AbstractSocrataServerJetty.defaultOptions.port,
-    hookSignals: Boolean = AbstractSocrataServerJetty.defaultOptions.hookSignals
+    hookSignals: Boolean = AbstractSocrataServerJetty.defaultOptions.hookSignals,
+    instrument: Boolean = AbstractSocrataServerJetty.defaultOptions.instrument
   ) extends Options {
     type OptT = OptionsImpl
 
@@ -68,6 +69,7 @@ object SocrataServerJettyServlet {
     override def withGracefulShutdownTimeout(gst: Duration) = copy(gracefulShutdownTimeout = gst)
     override def withGzipOptions(gzo: Option[Gzip.Options]) = copy(gzipOptions = gzo)
     override def withHookSignals(enabled: Boolean) = copy(hookSignals = enabled)
+    override def withInstrument(enabled: Boolean) = copy(instrument = enabled)
   }
 
   val defaultOptions: Options = OptionsImpl()

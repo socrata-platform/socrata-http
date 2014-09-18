@@ -11,6 +11,7 @@ object SocrataHttpJetty {
       jettyServer,
       jettyServlet,
       jettyServlets,
+      metricsJetty,
       slf4jApi
     )
   )

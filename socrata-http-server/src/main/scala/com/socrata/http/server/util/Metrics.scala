@@ -1,7 +1,9 @@
 package com.socrata.http.server.util
 
-import com.codahale.metrics.MetricRegistry
+import com.codahale.metrics.{MetricRegistry, Slf4jReporter}
+import java.util.concurrent.TimeUnit
 import nl.grons.metrics.scala.InstrumentedBuilder
+import org.slf4j.LoggerFactory
 
 /*
  * Initializes a MetricRegistry for the HTTP server to record all kinds of metrics
@@ -9,6 +11,17 @@ import nl.grons.metrics.scala.InstrumentedBuilder
  */
 object Metrics {
   val metricsRegistry = new MetricRegistry
+
+  lazy val reporter = Slf4jReporter.forRegistry(metricsRegistry)
+                                   .outputTo(LoggerFactory.getLogger("socrata-metrics"))
+                                   .convertRatesTo(TimeUnit.SECONDS)
+                                   .convertDurationsTo(TimeUnit.MILLISECONDS)
+                                   .build()
+
+  /**
+   * Start logging all metrics at a regular interval
+   */
+  def startMetricsLogging() = reporter.start(1, TimeUnit.MINUTES)
 }
 
 /**
@@ -25,5 +38,5 @@ object Metrics {
  * more usage info, such as how to override metrics name, etc.
  */
 trait Metrics extends InstrumentedBuilder {
-  val metrics = Metrics.metricsRegistry
+  val metricsRegistry = Metrics.metricsRegistry
 }

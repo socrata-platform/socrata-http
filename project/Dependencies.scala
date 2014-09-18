@@ -29,6 +29,7 @@ object Dependencies {
   val jodaTime = "joda-time" % "joda-time" % "2.1"
 
   val metrics = "nl.grons" %% "metrics-scala" % "3.3.0"
+  val metricsJetty = "io.dropwizard.metrics" % "metrics-jetty9" % "3.1.0"
 
   val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.11.3"
 
