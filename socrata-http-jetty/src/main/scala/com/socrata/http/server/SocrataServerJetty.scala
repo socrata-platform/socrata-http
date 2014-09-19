@@ -13,6 +13,9 @@ class SocrataServerJetty(handler: HttpService, options: SocrataServerJetty.Optio
    * @param broker A system to inform (de)readiness.
    * @param deregisterWaitMS Amount of time to give the broker before shutting down the listening socket.
    * @param gracefulShutdownTimeoutMS Maximum amount of time to wait for in-progress requests to stop.
+   * @param onFatalException A function to handle fatal exceptions
+   * @param gzipParameters GZIP decoding parameters
+   * @param metricsOptions options for enabling and tuning metrics config
    */
   @deprecated("Use SocrataServerJetty.Options instead", since="2.1.0")
   def this(handler: HttpService,
@@ -22,7 +25,8 @@ class SocrataServerJetty(handler: HttpService, options: SocrataServerJetty.Optio
            deregisterWaitMS: Int = 5000,
            gracefulShutdownTimeoutMS: Int = 60*60*1000,
            onFatalException: Throwable => Unit = AbstractSocrataServerJetty.shutDownJVM,
-           gzipParameters: Option[GzipParameters] = Some(GzipParameters())) =
+           gzipParameters: Option[GzipParameters] = Some(GzipParameters()),
+           metricsOptions: AbstractSocrataServerJetty.MetricsOptions = AbstractSocrataServerJetty.defaultMetricsOptions) =
     this(handler, SocrataServerJetty.defaultOptions.
            withOnStop(onStop).
            withPort(port).
@@ -30,7 +34,8 @@ class SocrataServerJetty(handler: HttpService, options: SocrataServerJetty.Optio
            withDeregisterWait(deregisterWaitMS.millis).
            withGracefulShutdownTimeout(gracefulShutdownTimeoutMS.millis).
            withOnFatalException(onFatalException).
-           withGzipOptions(gzipParameters.map(_.toOptions)))
+           withGzipOptions(gzipParameters.map(_.toOptions)).
+           withMetricsOptions(metricsOptions.copy(prefix = handler.getClass.getName)))
 }
 
 object SocrataServerJetty {

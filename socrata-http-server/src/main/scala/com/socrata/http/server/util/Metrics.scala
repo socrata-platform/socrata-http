@@ -20,8 +20,10 @@ object Metrics {
 
   /**
    * Start logging all metrics at a regular interval
+   *
+   * @param intervalSecs Log metrics every intervalSecs seconds
    */
-  def startMetricsLogging() = reporter.start(1, TimeUnit.MINUTES)
+  def startMetricsLogging(intervalSecs: Int) = reporter.start(intervalSecs, TimeUnit.SECONDS)
 }
 
 /**
