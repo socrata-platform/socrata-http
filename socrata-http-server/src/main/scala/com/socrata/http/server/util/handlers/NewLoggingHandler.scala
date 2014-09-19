@@ -11,6 +11,8 @@ import org.slf4j.{LoggerFactory, Logger}
  * multiple services via logging.
  */
 class NewLoggingHandler(underlying: HttpService, options: LoggingOptions) extends HttpService {
+  import collection.JavaConverters._
+
   def apply(req: HttpServletRequest) = { resp =>
     val log = options.log
     val start = System.nanoTime()
@@ -20,8 +22,9 @@ class NewLoggingHandler(underlying: HttpService, options: LoggingOptions) extend
         "?" + q
       }
       log.info(">>> " + reqStr)
-      val headers = options.logRequestHeaders.map { hdr => hdr -> Option(req.getHeader(hdr)) }.
-                                              collect { case (hdr, Some(value)) => hdr + ": " + value }
+      val headers = options.logRequestHeaders.flatMap { hdr =>
+        req.getHeaders(hdr).asScala.map { value => hdr + ": " + value }.toSeq
+      }
       if (!headers.isEmpty) log.info(">>> ReqHeaders:: " + headers.mkString(", "))
     }
 
@@ -35,8 +38,9 @@ class NewLoggingHandler(underlying: HttpService, options: LoggingOptions) extend
         else ""
       log.info("<<< {}ms{}", (end - start)/1000000, extra)
 
-      val headers = options.logResponseHeaders.map { hdr => hdr -> Option(trueResp.getHeader(hdr)) }.
-                                               collect { case (hdr, Some(value)) => hdr + ": " + value }
+      val headers = options.logResponseHeaders.flatMap { hdr =>
+        trueResp.getHeaders(hdr).asScala.map { value => hdr + ": " + value }.toSeq
+      }
       if (!headers.isEmpty) log.info(">>> RespHeaders:: " + headers.mkString(", "))
     }
   }
