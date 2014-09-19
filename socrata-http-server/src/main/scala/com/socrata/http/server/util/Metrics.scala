@@ -40,5 +40,5 @@ object Metrics {
  * more usage info, such as how to override metrics name, etc.
  */
 trait Metrics extends InstrumentedBuilder {
-  val metricsRegistry = Metrics.metricsRegistry
+  val metricRegistry = Metrics.metricsRegistry
 }
