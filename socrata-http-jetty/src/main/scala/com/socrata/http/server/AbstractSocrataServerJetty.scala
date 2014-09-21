@@ -7,9 +7,7 @@ import sun.misc.Signal
 import sun.misc.SignalHandler
 import java.util.concurrent.Semaphore
 
-import com.codahale.metrics.jetty9.InstrumentedHandler
 import com.socrata.util.logging.LazyStringLogger
-import com.socrata.http.server.util.Metrics
 import org.eclipse.jetty.server.{ServerConnector, Handler, Server}
 import org.eclipse.jetty.servlets.gzip.GzipHandler
 import org.eclipse.jetty.util.component.LifeCycle
@@ -17,7 +15,7 @@ import org.eclipse.jetty.util.component.LifeCycle
 /**
  * Base class for Socrata HTTP Servers.  Manages server lifecycle, including graceful
  * termination waiting for requests to clear;  service discovery registration;  signal
- * handling;  setting up standard server metrics, and more.
+ * handling;  and more.
  *
  */
 abstract class AbstractSocrataServerJetty(handler: Handler, options: AbstractSocrataServerJetty.Options = AbstractSocrataServerJetty.defaultOptions) {
@@ -45,8 +43,7 @@ abstract class AbstractSocrataServerJetty(handler: Handler, options: AbstractSoc
 
     val wrappedHandler = List[Handler => Handler](gzipHandler).foldLeft[Handler](handler) { (h, wrapper) => wrapper(h) }
     val countingHandler = new CountingHandler(wrappedHandler, onFatalException)
-    server.setHandler(if (metricsOptions.enabled) getInstrumentedHandler(countingHandler, metricsOptions)
-                      else countingHandler)
+    server.setHandler(countingHandler)
 
     val mbContainer = new org.eclipse.jetty.jmx.MBeanContainer(java.lang.management.ManagementFactory.getPlatformMBeanServer)
     server.addBean(mbContainer)
@@ -87,15 +84,6 @@ abstract class AbstractSocrataServerJetty(handler: Handler, options: AbstractSoc
         log.info("Hooking SIGTERM and SIGINT")
         oldSIGTERM = Signal.handle(SIGTERM, signalHandler)
         oldSIGINT = Signal.handle(SIGINT, signalHandler)
-      }
-
-      if (metricsOptions.enabled) {
-        // Enable JMX
-
-        if (metricsOptions.logMetrics) {
-          log.info("Starting metrics logging...")
-          Metrics.startMetricsLogging(metricsOptions.reportingIntervalSecs)
-        }
       }
 
       log.info("Starting server")
@@ -157,12 +145,6 @@ abstract class AbstractSocrataServerJetty(handler: Handler, options: AbstractSoc
     }
 
     log.info("Exiting")
-  }
-
-  private def getInstrumentedHandler(underlying: Handler, options: MetricsOptions): Handler = {
-    val handler = new InstrumentedHandler(Metrics.metricsRegistry, options.prefix)
-    handler.setHandler(underlying)
-    handler
   }
 
   private def gzipHandler(underlying: Handler): Handler = gzipOptions match {
@@ -259,9 +241,6 @@ object AbstractSocrataServerJetty {
 
     val hookSignals: Boolean
     def withHookSignals(enabled: Boolean): OptT
-
-    val metricsOptions: MetricsOptions
-    def withMetricsOptions(mo: MetricsOptions): OptT
   }
 
   private case class OptionsImpl(
@@ -272,8 +251,7 @@ object AbstractSocrataServerJetty {
     gracefulShutdownTimeout: Duration = Duration.Inf,
     onFatalException: Throwable => Unit = shutDownJVM,
     gzipOptions: Option[Gzip.Options] = None,
-    hookSignals: Boolean = true,
-    metricsOptions: MetricsOptions = defaultMetricsOptions
+    hookSignals: Boolean = true
   ) extends Options {
     type OptT = OptionsImpl
 
@@ -285,19 +263,9 @@ object AbstractSocrataServerJetty {
     override def withGracefulShutdownTimeout(gst: Duration) = copy(gracefulShutdownTimeout = gst)
     override def withGzipOptions(gzo: Option[Gzip.Options]) = copy(gzipOptions = gzo)
     override def withHookSignals(enabled: Boolean) = copy(hookSignals = enabled)
-    override def withMetricsOptions(mo: MetricsOptions) = copy(metricsOptions = mo)
   }
 
   val defaultOptions: Options = OptionsImpl()
-
-  case class MetricsOptions(enabled: Boolean = true,   // enable InstrumentedHandler etc.
-                            // Should be a prefix string unique to each service
-                            prefix: String = "com.socrata.http.server",
-                            logMetrics: Boolean = true,
-                            // How often metrics are logged / reported to statsd etc.
-                            reportingIntervalSecs: Int = 60)
-
-  val defaultMetricsOptions = MetricsOptions()
 
   object Gzip {
     sealed abstract class Options {

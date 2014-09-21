@@ -10,7 +10,6 @@ object SocrataHttpServer {
         javaxServlet % "provided",
         jodaConvert,
         jodaTime,
-        metrics,
         scalaReflect(sv),
         simpleArm,
         slf4jApi,
