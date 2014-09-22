@@ -1,5 +1,6 @@
 package com.socrata.http.server
 
+import org.eclipse.jetty.server.Handler
 import scala.concurrent.duration._
 
 class SocrataServerJetty(handler: HttpService, options: SocrataServerJetty.Options) extends
@@ -15,6 +16,8 @@ class SocrataServerJetty(handler: HttpService, options: SocrataServerJetty.Optio
    * @param gracefulShutdownTimeoutMS Maximum amount of time to wait for in-progress requests to stop.
    * @param onFatalException A function to handle fatal exceptions
    * @param gzipParameters GZIP decoding parameters
+   * @param extraHandlers A list of functions that take a base Jetty Handler and return a wrapped Handler.
+   *                      An example of where this is useful is for instrumenting with MetricsHandler.
    */
   @deprecated("Use SocrataServerJetty.Options instead", since="2.1.0")
   def this(handler: HttpService,
@@ -24,7 +27,8 @@ class SocrataServerJetty(handler: HttpService, options: SocrataServerJetty.Optio
            deregisterWaitMS: Int = 5000,
            gracefulShutdownTimeoutMS: Int = 60*60*1000,
            onFatalException: Throwable => Unit = AbstractSocrataServerJetty.shutDownJVM,
-           gzipParameters: Option[GzipParameters] = Some(GzipParameters())) =
+           gzipParameters: Option[GzipParameters] = Some(GzipParameters()),
+           extraHandlers: List[Handler => Handler] = Nil) =
     this(handler, SocrataServerJetty.defaultOptions.
            withOnStop(onStop).
            withPort(port).
@@ -32,7 +36,8 @@ class SocrataServerJetty(handler: HttpService, options: SocrataServerJetty.Optio
            withDeregisterWait(deregisterWaitMS.millis).
            withGracefulShutdownTimeout(gracefulShutdownTimeoutMS.millis).
            withOnFatalException(onFatalException).
-           withGzipOptions(gzipParameters.map(_.toOptions)))
+           withGzipOptions(gzipParameters.map(_.toOptions)).
+           withExtraHandlers(extraHandlers))
 }
 
 object SocrataServerJetty {
