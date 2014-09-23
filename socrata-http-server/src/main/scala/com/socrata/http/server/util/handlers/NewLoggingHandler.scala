@@ -41,7 +41,7 @@ class NewLoggingHandler(underlying: HttpService, options: LoggingOptions) extend
       val headers = options.logResponseHeaders.flatMap { hdr =>
         trueResp.getHeaders(hdr).asScala.map { value => hdr + ": " + value }.toSeq
       }
-      if (!headers.isEmpty) log.info(">>> RespHeaders:: " + headers.mkString(", "))
+      if (!headers.isEmpty) log.info("<<< RespHeaders:: " + headers.mkString(", "))
     }
   }
 }
