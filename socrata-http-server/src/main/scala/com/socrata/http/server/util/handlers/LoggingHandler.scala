@@ -14,26 +14,6 @@ class LoggingHandler(underlying: HttpService, log: Logger = LoggingHandler.defau
       }
       log.info(">>> " + reqStr)
     }
-    class InspectableHttpServletResponse(underlying: HttpServletResponse) extends HttpServletResponseWrapper(underlying) {
-      var status = 200
-      override def setStatus(x: Int) {
-        super.setStatus(x)
-        status = x
-      }
-      @deprecated(message = "prefer setStatus(Int) or sendError(Int,String)", since = "Servlet 2.1")
-      override def setStatus(x: Int, m: String) {
-        super.setStatus(x, m)
-        status = x
-      }
-      override def sendError(x: Int) {
-        super.sendError(x)
-        status = x
-      }
-      override def sendError(x: Int, m: String) {
-        super.sendError(x, m)
-        status = x
-      }
-    }
     val trueResp = new InspectableHttpServletResponse(resp)
     try {
       underlying(req)(trueResp)
@@ -44,6 +24,27 @@ class LoggingHandler(underlying: HttpService, log: Logger = LoggingHandler.defau
         else ""
       log.info("<<< {}ms{}", (end - start)/1000000, extra)
     }
+  }
+}
+
+class InspectableHttpServletResponse(underlying: HttpServletResponse) extends HttpServletResponseWrapper(underlying) {
+  var status = 200
+  override def setStatus(x: Int) {
+    super.setStatus(x)
+    status = x
+  }
+  @deprecated(message = "prefer setStatus(Int) or sendError(Int,String)", since = "Servlet 2.1")
+  override def setStatus(x: Int, m: String) {
+    super.setStatus(x, m)
+    status = x
+  }
+  override def sendError(x: Int) {
+    super.sendError(x)
+    status = x
+  }
+  override def sendError(x: Int, m: String) {
+    super.sendError(x, m)
+    status = x
   }
 }
 

@@ -12,8 +12,15 @@ import org.eclipse.jetty.server.{ServerConnector, Handler, Server}
 import org.eclipse.jetty.servlets.gzip.GzipHandler
 import org.eclipse.jetty.util.component.LifeCycle
 
+/**
+ * Base class for Socrata HTTP Servers.  Manages server lifecycle, including graceful
+ * termination waiting for requests to clear;  service discovery registration;  signal
+ * handling;  and more.
+ *
+ */
 abstract class AbstractSocrataServerJetty(handler: Handler, options: AbstractSocrataServerJetty.Options = AbstractSocrataServerJetty.defaultOptions) {
   import options._
+  import AbstractSocrataServerJetty._
 
   val log = LazyStringLogger[this.type]
 
@@ -34,7 +41,7 @@ abstract class AbstractSocrataServerJetty(handler: Handler, options: AbstractSoc
     // anywhere.. well, there shouldn't be!
     // server.setStopAtShutdown(true)
 
-    val wrappedHandler = List[Handler => Handler](gzipHandler).foldLeft[Handler](handler) { (h, wrapper) => wrapper(h) }
+    val wrappedHandler = ((gzipHandler _) :: options.extraHandlers).foldLeft[Handler](handler) { (h, wrapper) => wrapper(h) }
     val countingHandler = new CountingHandler(wrappedHandler, onFatalException)
     server.setHandler(countingHandler)
 
@@ -234,6 +241,9 @@ object AbstractSocrataServerJetty {
 
     val hookSignals: Boolean
     def withHookSignals(enabled: Boolean): OptT
+
+    val extraHandlers: List[Handler => Handler]
+    def withExtraHandlers(handlers: List[Handler => Handler]): OptT
   }
 
   private case class OptionsImpl(
@@ -244,7 +254,8 @@ object AbstractSocrataServerJetty {
     gracefulShutdownTimeout: Duration = Duration.Inf,
     onFatalException: Throwable => Unit = shutDownJVM,
     gzipOptions: Option[Gzip.Options] = None,
-    hookSignals: Boolean = true
+    hookSignals: Boolean = true,
+    extraHandlers: List[Handler => Handler] = Nil
   ) extends Options {
     type OptT = OptionsImpl
 
@@ -256,6 +267,7 @@ object AbstractSocrataServerJetty {
     override def withGracefulShutdownTimeout(gst: Duration) = copy(gracefulShutdownTimeout = gst)
     override def withGzipOptions(gzo: Option[Gzip.Options]) = copy(gzipOptions = gzo)
     override def withHookSignals(enabled: Boolean) = copy(hookSignals = enabled)
+    override def withExtraHandlers(h: List[Handler => Handler]) = copy(extraHandlers = h)
   }
 
   val defaultOptions: Options = OptionsImpl()
