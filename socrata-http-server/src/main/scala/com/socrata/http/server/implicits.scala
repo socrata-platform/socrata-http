@@ -1,11 +1,15 @@
 package com.socrata.http.server
 
+import java.io.InputStreamReader
+import java.nio.charset.Charset
+import javax.activation.MimeType
+
 import scala.collection.JavaConverters._
 import javax.servlet.http.HttpServletRequest
 import java.net.URLDecoder
 
 import com.socrata.http.server.`-impl`.ChainedHttpResponse
-import com.socrata.http.common.util.{HttpUtils, ContentNegotiation}
+import com.socrata.http.common.util.{CharsetFor, HttpUtils, ContentNegotiation}
 import com.socrata.http.server.util.PreconditionParser
 
 import org.joda.time.{DateTime, DateTimeZone}
@@ -35,6 +39,20 @@ object implicits {
       checkHeaderAccess(underlying.getHeaders(name)).asInstanceOf[java.util.Enumeration[String]].asScala
 
     def contentType = Option(underlying.getContentType)
+
+    /* Sets the request's character encoding based on its content-type.
+     * Use this before calling `getReader`!  This is especially important
+     * when reading JSON! */
+    def updateCharacterEncoding(): Option[CharsetFor.ContentTypeFailure] =
+      contentType.flatMap { ct =>
+        CharsetFor.contentType(ct) match {
+          case CharsetFor.Success(cs) =>
+            underlying.setCharacterEncoding(cs.name)
+            None
+          case f: CharsetFor.ContentTypeFailure =>
+            Some(f)
+        }
+      }
 
     def accept = headers("Accept").toVector.flatMap(HttpUtils.parseAccept)
     def acceptCharset = headers("Accept-Charset").toVector.flatMap(HttpUtils.parseAcceptCharset)
