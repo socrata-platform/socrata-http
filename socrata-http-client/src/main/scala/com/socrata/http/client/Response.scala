@@ -10,7 +10,7 @@ import com.rojoma.json.codec.JsonCodec
 import com.rojoma.json.util.JsonArrayIterator
 
 import com.socrata.http.client.exceptions._
-import com.socrata.http.common.util.{AcknowledgeableInputStream, Acknowledgeable}
+import com.socrata.http.common.util.{CharsetFor, AcknowledgeableInputStream, Acknowledgeable}
 
 /**
  * An HTTP response object.
@@ -151,13 +151,11 @@ class StandardResponse(responseInfo: ResponseInfo, rawInputStream: InputStream) 
 
   lazy val charset = contentType match {
     case Some(ct) =>
-      try {
-        Option(ct.getParameter("charset")).map(Charset.forName).getOrElse(StandardCharsets.ISO_8859_1)
-      } catch {
-        case e: IllegalCharsetNameException =>
-          illegalCharsetName(e.getCharsetName)
-        case e: UnsupportedCharsetException =>
-          unsupportedCharset(e.getCharsetName)
+      CharsetFor.mimeType(ct) match {
+        case CharsetFor.Success(cs) => cs
+        case CharsetFor.IllegalCharsetName(n) => illegalCharsetName(n)
+        case CharsetFor.UnknownCharset(n) => unsupportedCharset(n)
+        case CharsetFor.UnknownMimeType(_) => StandardCharsets.ISO_8859_1 // unhappy, but backward compat
       }
     case None =>
       StandardCharsets.ISO_8859_1
