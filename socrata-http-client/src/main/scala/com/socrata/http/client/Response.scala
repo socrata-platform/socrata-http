@@ -69,15 +69,6 @@ trait Response extends ResponseInfo {
   @deprecated(message = "prefer `inputStream`", since = "2.3.0") // just because I'm renaming everything else too
   def asInputStream(maximumSizeBetweenAcks: Long = Long.MaxValue): InputStream with Acknowledgeable
 
-  /** Gets the response body as an `InputStream`.  The returned input stream will
-    * throw a [[com.socrata.http.common.util.TooMuchDataWithoutAcknowledgement]] exception
-    * if it receives more than `maximumSizeBetweenAcks` bytes without having its `acknowledge()`
-    * method called.
-    *
-    * @throws java.lang.IllegalStateException if the stream has already been created.
-    */
-  def inputStream(maximumSizeBetweenAcks: Long = Long.MaxValue): InputStream with Acknowledgeable
-
   /** Gets the response body as a `Reader`.  The returned reader will
     * throw a [[com.socrata.http.common.util.TooMuchDataWithoutAcknowledgement]] exception
     * if it receives more than `maximumSizeBetweenAcks` bytes without having its `acknowledge()`
@@ -171,6 +162,16 @@ final class AugmentedResponse(val self: Response) extends AnyVal {
       multipleContentTypesInResponse()
   }
 
+  /** Gets the response body as an `InputStream`.  The returned input stream will
+    * throw a [[com.socrata.http.common.util.TooMuchDataWithoutAcknowledgement]] exception
+    * if it receives more than `maximumSizeBetweenAcks` bytes without having its `acknowledge()`
+    * method called.
+    *
+    * @throws java.lang.IllegalStateException if the stream has already been created.
+    */
+  def inputStream(maximumSizeBetweenAcks: Long = Long.MaxValue): InputStream with Acknowledgeable =
+    asInputStream(maximumSizeBetweenAcks)
+
   /** Gets the response body as a `Reader`.  The returned reader will
     * throw a [[com.socrata.http.common.util.TooMuchDataWithoutAcknowledgement]] exception
     * if it receives more than `maximumSizeBetweenAcks` bytes without having its `acknowledge()`
@@ -188,6 +189,10 @@ final class AugmentedResponse(val self: Response) extends AnyVal {
     */
   def reader(charset: Option[Charset] = None, maximumSizeBetweenAcks: Long = Long.MaxValue): Reader with Acknowledgeable = {
     val stream = inputStream(maximumSizeBetweenAcks)
+    // For now, this MUST (despite the type) return an InputStreamReader!  This is because,
+    // in order to preserve binary compatibility, the StandardReader#asReader method must
+    // return an InputStreamReader.  Therefore, the result of this method gets dowcast there
+    // as I don't want THIS method falling into that same trap.
     new InputStreamReader(stream, charset.getOrElse(self.charset)) with Acknowledgeable {
       def acknowledge() = stream.acknowledge()
     }
@@ -375,7 +380,8 @@ class StandardResponse(responseInfo: ResponseInfo, rawInputStream: InputStream) 
   }
   def asInputStream(maximumSizeBetweenAcks: Long) = inputStream(maximumSizeBetweenAcks)
 
-  def asReader(maximumSizeBetweenAcks: Long) = self.reader(maximumSizeBetweenAcks = maximumSizeBetweenAcks)
+  def asReader(maximumSizeBetweenAcks: Long): InputStreamReader with Acknowledgeable =
+    self.reader(maximumSizeBetweenAcks = maximumSizeBetweenAcks).asInstanceOf[InputStreamReader with Acknowledgeable]
 
   lazy val isJson: Boolean =
     self.contentType match {
