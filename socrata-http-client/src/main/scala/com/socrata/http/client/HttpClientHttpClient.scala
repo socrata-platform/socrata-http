@@ -168,8 +168,8 @@ class HttpClientHttpClient(executor: Executor, options: HttpClientHttpClient.Opt
           throw e.getCause
         case e: SocketException if e.getMessage == "Socket closed" =>
           probablyAborted(e)
-        case _: SocketTimeoutException =>
-          receiveTimeout()
+        case e: SocketTimeoutException =>
+          receiveTimeout(e)
         case e: InterruptedIOException =>
           probablyAborted(e)
         case e: IOException if e.getMessage == "Request already aborted" =>
@@ -201,7 +201,7 @@ class HttpClientHttpClient(executor: Executor, options: HttpClientHttpClient.Opt
               probablyAborted(e)
             case e: java.net.SocketTimeoutException =>
               exceptionWhileReading = true
-              receiveTimeout()
+              receiveTimeout(e)
             case e: Throwable =>
               exceptionWhileReading = true
               throw e
