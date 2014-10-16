@@ -8,14 +8,8 @@ object Build extends sbt.Build {
     settings = BuildSettings.buildSettings ++ Seq(
       autoScalaLibrary := false
     )
-  ).dependsOn(allOtherProjects.map(p => p:ClasspathDep[ProjectReference]): _*)
-   .aggregate(allOtherProjects: _*)
-
-  private def allOtherProjects =
-    for {
-      method <- getClass.getDeclaredMethods.toSeq
-      if method.getParameterTypes.isEmpty && classOf[Project].isAssignableFrom(method.getReturnType) && method.getName != "build"
-    } yield method.invoke(this).asInstanceOf[Project] : ProjectReference
+  ).dependsOn(socrataHttpCommon, socrataHttpServer, socrataHttpJetty, socrataHttpCuratorBroker, socrataHttpClient)
+   .aggregate(socrataHttpCommon, socrataHttpServer, socrataHttpJetty, socrataHttpCuratorBroker, socrataHttpClient)
 
   lazy val socrataHttpCommon = Project(
     "socrata-http-common",
