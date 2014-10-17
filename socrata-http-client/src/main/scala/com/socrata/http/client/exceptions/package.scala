@@ -4,7 +4,7 @@ import javax.activation.MimeType
 
 package object exceptions {
   def connectTimeout() = throw new ConnectTimeout
-  def receiveTimeout() = throw new ReceiveTimeout
+  def receiveTimeout(cause: Throwable = null) = throw new ReceiveTimeout(cause)
   def connectFailed(cause: java.net.ConnectException) = throw new ConnectFailed(cause)
   def livenessCheckFailed() = throw new LivenessCheckFailed
   def fullTimeout() = throw new FullTimeout

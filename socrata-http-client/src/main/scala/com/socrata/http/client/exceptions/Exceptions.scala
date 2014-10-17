@@ -1,13 +1,13 @@
 package com.socrata.http.client.exceptions
 
 import javax.activation.MimeType
-import java.net.ConnectException
+import java.net.{SocketTimeoutException, ConnectException}
 
 class HttpClientException(msg: String = null, cause: Throwable = null) extends Exception(msg, cause)
 
 class HttpClientTimeoutException extends HttpClientException
 class ConnectTimeout extends HttpClientTimeoutException
-class ReceiveTimeout extends HttpClientTimeoutException
+class ReceiveTimeout(cause: Throwable = null) extends HttpClientTimeoutException
 class FullTimeout extends HttpClientTimeoutException
 
 class LivenessCheckFailed extends HttpClientException
