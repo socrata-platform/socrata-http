@@ -9,6 +9,7 @@ object RequestId {
   type RequestId = String
 
   val ReqIdHeader = "X-Socrata-RequestId"
+  private val secureRandom = new java.security.SecureRandom
 
   /**
    * Obtains a RequestId from an HTTP request, generating one if not present.
@@ -22,5 +23,5 @@ object RequestId {
    * Generates a random Request ID.
    * NOTE: this is probably good enough but should we consider using UUIDs?
    */
-  def generate(): RequestId = math.BigInt(128, scala.util.Random).toString(36)
+  def generate(): RequestId = math.BigInt(128, secureRandom).toString(36)
 }
