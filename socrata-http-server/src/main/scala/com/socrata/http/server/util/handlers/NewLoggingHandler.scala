@@ -43,6 +43,8 @@ class NewLoggingHandler(underlying: HttpService, options: LoggingOptions) extend
         else ""
       log.info("<<< {}ms{}", (end - start)/1000000, extra)
 
+      MDC.clear()
+
       val headers = options.logResponseHeaders.flatMap { hdr =>
         trueResp.getHeaders(hdr).asScala.map { value => hdr + ": " + value }.toSeq
       }
