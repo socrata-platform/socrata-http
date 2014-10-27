@@ -2,13 +2,16 @@ package com.socrata.http.server.util.handlers
 
 import com.socrata.http.server.HttpService
 import javax.servlet.http.{HttpServletResponseWrapper, HttpServletResponse, HttpServletRequest}
-import org.slf4j.{LoggerFactory, Logger}
+import org.slf4j.{LoggerFactory, Logger, MDC}
 
 /**
  * NewLoggingHandler - a handler with standard logging for requests, plus extra features
  * like logging of specific request and response headers.
  * For example, pass in a request ID in the headers, then use this to trace requests through
  * multiple services via logging.
+ *
+ * Found request headers are added to MDC for logging purposes.  This should be OK since usually
+ * very few headers are logged.
  */
 class NewLoggingHandler(underlying: HttpService, options: LoggingOptions) extends HttpService {
   import collection.JavaConverters._
@@ -23,7 +26,9 @@ class NewLoggingHandler(underlying: HttpService, options: LoggingOptions) extend
       }
       log.info(">>> " + reqStr)
       val headers = options.logRequestHeaders.flatMap { hdr =>
-        req.getHeaders(hdr).asScala.map { value => hdr + ": " + value }.toSeq
+        val values = req.getHeaders(hdr).asScala.toSeq
+        if (values.nonEmpty) MDC.put(hdr, values.head)
+        values.map { value => hdr + ": " + value }
       }
       if (!headers.isEmpty) log.info(">>> ReqHeaders:: " + headers.mkString(", "))
     }
@@ -42,6 +47,7 @@ class NewLoggingHandler(underlying: HttpService, options: LoggingOptions) extend
         trueResp.getHeaders(hdr).asScala.map { value => hdr + ": " + value }.toSeq
       }
       if (!headers.isEmpty) log.info("<<< RespHeaders:: " + headers.mkString(", "))
+      MDC.clear()
     }
   }
 }
