@@ -260,7 +260,7 @@ object RequestBuilder {
     val bs = s.getBytes("UTF-8")
     var i = 0
     while(i != bs.length) {
-      val b = bs(i & 0xff) & 0xff
+      val b = bs(i) & 0xff
       if(byteAllowed(b)) {
         sb.append(b.toChar)
       } else {
