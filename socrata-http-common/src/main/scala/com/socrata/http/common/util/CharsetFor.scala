@@ -48,7 +48,7 @@ object CharsetFor {
     mimeType(mt)
   }
 
-  private def buildRegistry(values: (String, Charset)*): Map[String, Map[String, Charset]] = {
+  private def buildRegistry(values: Seq[(String, Charset)]): Map[String, Map[String, Charset]] = {
     val withWildcards = values.foldLeft(Map.empty[String, Map[String, Charset]]) { (acc, mimeTypeDetector) =>
       val (mimeTypeRaw, detector) = mimeTypeDetector
       val mimeType = new MimeType(mimeTypeRaw)
@@ -63,11 +63,21 @@ object CharsetFor {
     }
   }
 
-  private val registry = buildRegistry(
+  @volatile
+  private var registrations = Vector(
     "application/json" -> UTF_8, // per RFC 7159; rfc4627 defines an autodetect system but it was dropped in 7159
     "application/vnd.geo+json" -> UTF_8,
     "text/csv" -> UTF_8, // per http://www.iana.org/assignments/media-types/text/csv
     "text/html" -> ISO_8859_1,
     "text/*" -> US_ASCII // per RFC 6657
   )
+
+  /** Add a default charset for a MIME type. */
+  def registerContentTypeCharset(contentType: String, charset: Charset): Unit = synchronized {
+    val newRegistrations = registrations.filterNot(_._1 == contentType) :+ contentType -> charset
+    registry = buildRegistry(registrations)
+    registrations = newRegistrations
+  }
+
+  @volatile private var registry = buildRegistry(registrations)
 }
