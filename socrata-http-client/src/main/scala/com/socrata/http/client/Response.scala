@@ -4,15 +4,10 @@ import java.io.{InputStreamReader, Reader, InputStream}
 import javax.activation.{MimeTypeParseException, MimeType}
 import java.nio.charset.{StandardCharsets, Charset}
 
-import com.rojoma.json.io.{JsonReader, FusedBlockJsonEventIterator, JsonEvent}
-import com.rojoma.json.ast.JValue
-import com.rojoma.json.codec.JsonCodec
-import com.rojoma.json.util.JsonArrayIterator
-
-import com.rojoma.json.v3.io.{JsonReader => JsonReader3, FusedBlockJsonEventIterator => FusedBlockJsonEventIterator3, JsonEvent => JsonEvent3}
-import com.rojoma.json.v3.ast.{JValue => JValue3}
+import com.rojoma.json.v3.io.{JsonReader, FusedBlockJsonEventIterator, JsonEvent}
+import com.rojoma.json.v3.ast.JValue
 import com.rojoma.json.v3.codec.{DecodeError, JsonDecode}
-import com.rojoma.json.v3.util.{JsonArrayIterator => JsonArrayIterator3}
+import com.rojoma.json.v3.util.JsonArrayIterator
 
 import com.socrata.http.client.exceptions._
 import com.socrata.http.common.util.{CharsetFor, AcknowledgeableInputStream, Acknowledgeable}
@@ -68,6 +63,8 @@ trait Response extends ResponseInfo {
     * if it receives more than `maximumSizeBetweenAcks` bytes without having its `acknowledge()`
     * method called.
     *
+    * The validity of the resulting stream is tied to the lifetime of this `Response`.
+    *
     * @throws java.lang.IllegalStateException if the stream has already been created.
     */
   def inputStream(maximumSizeBetweenAcks: Long = Long.MaxValue): InputStream with Acknowledgeable
@@ -76,6 +73,8 @@ trait Response extends ResponseInfo {
     * throw a [[com.socrata.http.common.util.TooMuchDataWithoutAcknowledgement]] exception
     * if it receives more than `maximumSizeBetweenAcks` bytes without having its `acknowledge()`
     * method called.
+    *
+    * The validity of the resulting writer is tied to the lifetime of this `Response`.
     *
     * @throws java.lang.IllegalStateException if the stream has already been created.
     * @throws com.socrata.http.client.exceptions.UnparsableContentType if `charset` is `None` and the `Content-Type`
@@ -104,6 +103,8 @@ trait Response extends ResponseInfo {
     * method called.  It may also throw a `JsonReaderException` if the body is not well-formed
     * JSON.
     *
+    * The validity of the resulting iterator is tied to the lifetime of this `Response`.
+    *
     * @throws java.lang.IllegalStateException if the stream has already been created.
     * @throws com.socrata.http.client.exceptions.ContentTypeException if the response does not have an interpretable `Content-type`
     *                                                                   or if it is not accepted by `acceptableContentType`
@@ -116,37 +117,6 @@ trait Response extends ResponseInfo {
     }
   }
 
-  /** Gets the response body as an `Iterator[JsonEvent]`.  The returned iterator will
-    * throw a [[com.socrata.http.common.util.TooMuchDataWithoutAcknowledgement]] exception
-    * if it receives more than `maximumSizeBetweenAcks` bytes without having its `acknowledge()`
-    * method called.  It may also throw a `JsonReaderException` if the body is not well-formed
-    * JSON.
-    *
-    * @throws java.lang.IllegalStateException if the stream has already been created.
-    * @throws com.socrata.http.client.exceptions.ContentTypeException if the response does not have an interpretable `Content-type`
-    *                                                                   or if it is not accepted by `acceptableContentType`
-    */
-  def jsonEvents3(acceptableContentType: ContentP = Response.acceptJson, maximumSizeBetweenAcks: Long = Long.MaxValue): Iterator[JsonEvent3] with Acknowledgeable = {
-    if(!acceptableContentType(contentType)) throw responseNotJson(contentType)
-    val r = reader(None, maximumSizeBetweenAcks)
-    new FusedBlockJsonEventIterator3(r) with Acknowledgeable {
-      def acknowledge() = r.acknowledge()
-    }
-  }
-
-  /** Gets the response body as a `JValue`.
-    *
-    * @throws java.lang.IllegalStateException if the stream has already been created.
-    * @throws com.socrata.http.common.util.TooMuchDataWithoutAcknowledgement if parsing the JValue
-    *                                                                          requires reading more than `approximateMaximumSize`
-    *                                                                          bytes from the response.
-    * @throws com.socrata.http.client.exceptions.ContentTypeException if the response does not have an interpretable `Content-type`
-    *                                                                   or if it is not accepted by `acceptableContentType`
-    * @throws com.rojoma.json.io.JsonReaderException if the response is ill-formed.
-    */
-  def jValue(acceptableContentType: ContentP = Response.acceptJson, approximateMaximumSize: Long = Long.MaxValue): JValue =
-    JsonReader.fromEvents(jsonEvents(acceptableContentType, approximateMaximumSize))
-
   /** Gets the response body as a `JValue`.
     *
     * @throws java.lang.IllegalStateException if the stream has already been created.
@@ -157,24 +127,11 @@ trait Response extends ResponseInfo {
     *                                                                   or if it is not accepted by `acceptableContentType`
     * @throws com.rojoma.json.v3.io.JsonReaderException if the response is ill-formed.
     */
-  def jValue3(acceptableContentType: ContentP = Response.acceptJson, approximateMaximumSize: Long = Long.MaxValue): JValue3 ={
+  def jValue(acceptableContentType: ContentP = Response.acceptJson, approximateMaximumSize: Long = Long.MaxValue): JValue ={
     if(!acceptableContentType(contentType)) throw responseNotJson(contentType)
     val r = reader(None, approximateMaximumSize)
-    JsonReader3.fromReader(r)
+    JsonReader.fromReader(r)
   }
-
-  /** Gets the response body as an instance of a class which is convertable from JSON.
-    *
-    * @throws java.lang.IllegalStateException if the stream has already been created.
-    * @throws com.socrata.http.common.util.TooMuchDataWithoutAcknowledgement if parsing the JValue
-    *                                                                          requires reading more than `approximateMaximumSize`
-    *                                                                          bytes from the response.
-    * @throws com.socrata.http.client.exceptions.ContentTypeException if the response does not have an interpretable `Content-type` or if
-    *                                                                   it is not accepted by `acceptableContentType`.
-    * @throws com.rojoma.json.io.JsonReaderException if the response is ill-formed.
-    */
-  def value[T : JsonCodec](acceptableContentType: ContentP = Response.acceptJson, approximateMaximumSize: Long = Long.MaxValue): Option[T] =
-    JsonCodec[T].decode(jValue(acceptableContentType, approximateMaximumSize))
 
   /** Gets the response body as an instance of a class which is convertable from JSON.
     *
@@ -186,29 +143,15 @@ trait Response extends ResponseInfo {
     *                                                                   it is not accepted by `acceptableContentType`.
     * @throws com.rojoma.json.v3.io.JsonReaderException if the response is ill-formed.
     */
-  def value3[T : JsonDecode](acceptableContentType: ContentP = Response.acceptJson, approximateMaximumSize: Long = Long.MaxValue): Either[DecodeError, T] =
-    JsonDecode[T].decode(jValue3(acceptableContentType, approximateMaximumSize))
+  def value[T : JsonDecode](acceptableContentType: ContentP = Response.acceptJson, approximateMaximumSize: Long = Long.MaxValue): Either[DecodeError, T] =
+    JsonDecode[T].decode(jValue(acceptableContentType, approximateMaximumSize))
 
-  /** Gets the response body as an instance of a class which is convertable from JSON.
+  /** Gets the response body as an iterator of objects of a class which is convertable from JSON.
     *
     * The retured iterator may throw `JsonArrayIterator.ElementDecodeException` if one if its elements
     * cannot be decoded to `T`.
     *
-    * @throws java.lang.IllegalStateException if the stream has already been created.
-    * @throws com.socrata.http.common.util.TooMuchDataWithoutAcknowledgement if parsing the JValue
-    *                                                                          requires reading more than `approximateMaximumSize`
-    *                                                                          bytes from the response.
-    * @throws com.socrata.http.client.exceptions.ContentTypeException if the response does not have an interpretable `Content-type` or if
-    *                                                                   it is not accepted by `acceptableContentType`.
-    * @throws com.rojoma.json.io.JsonReaderException if the response is ill-formed or it is not an array.
-    */
-  def array[T : JsonCodec](acceptableContentType: ContentP = Response.acceptJson, approximateMaximumElementSize: Long = Long.MaxValue): Iterator[T] =
-    new AcknowledgingIterator[T, JsonEvent](jsonEvents(acceptableContentType, approximateMaximumElementSize), JsonArrayIterator[T](_))
-
-  /** Gets the response body as an instance of a class which is convertable from JSON.
-    *
-    * The retured iterator may throw `JsonArrayIterator.ElementDecodeException` if one if its elements
-    * cannot be decoded to `T`.
+    * The validity of the resulting iterator is tied to the lifetime of this `Response`.
     *
     * @throws java.lang.IllegalStateException if the stream has already been created.
     * @throws com.socrata.http.common.util.TooMuchDataWithoutAcknowledgement if parsing the JValue
@@ -218,8 +161,8 @@ trait Response extends ResponseInfo {
     *                                                                   it is not accepted by `acceptableContentType`.
     * @throws com.rojoma.json.v3.io.JsonReaderException if the response is ill-formed or it is not an array.
     */
-  def array3[T : JsonDecode](acceptableContentType: ContentP = Response.acceptJson, approximateMaximumElementSize: Long = Long.MaxValue): Iterator[T] =
-    new AcknowledgingIterator[T, JsonEvent3](jsonEvents3(acceptableContentType, approximateMaximumElementSize), JsonArrayIterator3[T](_))
+  def array[T : JsonDecode](acceptableContentType: ContentP = Response.acceptJson, approximateMaximumElementSize: Long = Long.MaxValue): Iterator[T] =
+    new AcknowledgingIterator[T, JsonEvent](jsonEvents(acceptableContentType, approximateMaximumElementSize), JsonArrayIterator[T](_))
 }
 
 object Response {
@@ -274,28 +217,6 @@ class StandardResponse(responseInfo: ResponseInfo, rawInputStream: InputStream) 
     _streamCreated = true
     new AcknowledgeableInputStream(rawInputStream, maximumSizeBetweenAcks)
   }
-  def asInputStream(maximumSizeBetweenAcks: Long) = inputStream(maximumSizeBetweenAcks)
-
-  def asReader(maximumSizeBetweenAcks: Long): InputStreamReader with Acknowledgeable =
-    self.reader(maximumSizeBetweenAcks = maximumSizeBetweenAcks).asInstanceOf[InputStreamReader with Acknowledgeable]
-
-  lazy val isJson: Boolean =
-    self.contentType match {
-      case Some(ct) => ct.getBaseType == HttpClient.jsonContentTypeBase
-      case None => false
-    }
-
-  def asJsonEvents(maximumSizeBetweenAcks: Long): Iterator[JsonEvent] with Acknowledgeable =
-    self.jsonEvents(maximumSizeBetweenAcks = maximumSizeBetweenAcks)
-
-  def asJValue(approximateMaximumSize: Long): JValue =
-    self.jValue(approximateMaximumSize = approximateMaximumSize)
-
-  def asValue[T: JsonCodec](approximateMaximumSize: Long): Option[T] =
-    self.value(approximateMaximumSize = approximateMaximumSize)
-
-  def asArray[T: JsonCodec](approximateMaximumElementSize: Long): Iterator[T] =
-    this.array[T](approximateMaximumElementSize = approximateMaximumElementSize)
 
   def resultCode: Int = responseInfo.resultCode
   def headers(name: String): Array[String] = responseInfo.headers(name)

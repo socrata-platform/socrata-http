@@ -10,7 +10,7 @@ import java.io.{Closeable, IOException}
 import java.util.concurrent.CountDownLatch
 import java.nio.charset.StandardCharsets
 
-import com.rojoma.simplearm.util._
+import com.rojoma.simplearm.v2._
 
 import com.socrata.http.common.livenesscheck.LivenessCheckInfo
 
