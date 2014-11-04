@@ -1,6 +1,9 @@
 package com.socrata.http.server
 
+import java.io.{InputStreamReader, Reader}
+
 import com.rojoma.simplearm.v2.ResourceScope
+import com.socrata.http.common.util.CharsetFor.UnparsableContentType
 
 import scala.collection.JavaConverters._
 import java.net.URLDecoder
@@ -51,18 +54,19 @@ object HttpRequest {
 
     def contentType = Option(servletRequest.getContentType)
 
-    /* Sets the request's character encoding based on its content-type.
-     * Use this before calling `getReader`!  This is especially important
-     * when reading JSON! */
-    def updateCharacterEncoding(): Option[CharsetFor.ContentTypeFailure] =
-      contentType.flatMap { ct =>
-        CharsetFor.contentType(ct) match {
-          case CharsetFor.Success(cs) =>
-            servletRequest.setCharacterEncoding(cs.name)
-            None
-          case f: CharsetFor.ContentTypeFailure =>
-            Some(f)
+    def inputStream = servletRequest.getInputStream
+
+    def reader: Either[CharsetFor.ContentTypeFailure, Reader] =
+      contentType match {
+        case Some(ct) =>
+          CharsetFor.contentType(ct) match {
+            case CharsetFor.Success(cs) =>
+              Right(new InputStreamReader(servletRequest.getInputStream, cs))
+            case e: CharsetFor.ContentTypeFailure =>
+              Left(e)
         }
+        case None =>
+          Left(UnparsableContentType("")) // ehhhhhhh
       }
 
     def accept = headers("Accept").toVector.flatMap(HttpUtils.parseAccept)
