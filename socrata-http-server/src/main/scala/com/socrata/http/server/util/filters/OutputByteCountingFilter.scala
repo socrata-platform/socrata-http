@@ -3,11 +3,11 @@ package com.socrata.http.server.util.filters
 import OutputByteCountingFilter._
 import javax.servlet.ServletOutputStream
 import java.io._
-import javax.servlet.http.{HttpServletResponse, HttpServletResponseWrapper, HttpServletRequest}
+import javax.servlet.http.{HttpServletResponse, HttpServletResponseWrapper}
 import com.socrata.http.server._
 
-trait OutputByteCountingFilter extends SimpleFilter[HttpServletRequest, HttpResponse] {
-  def apply(req: HttpServletRequest, service: HttpService): HttpResponse = {
+trait OutputByteCountingFilter extends SimpleFilter[HttpRequest, HttpResponse] {
+  def apply(req: HttpRequest, service: HttpService): HttpResponse = {
     val script = service(req)
 
     { resp =>

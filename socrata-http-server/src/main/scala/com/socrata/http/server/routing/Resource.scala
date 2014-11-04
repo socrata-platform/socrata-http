@@ -1,9 +1,8 @@
 package com.socrata.http.server.routing
 
-import com.socrata.http.server.{Service, HttpService, HttpResponse}
+import com.socrata.http.server.{HttpRequest, Service, HttpService, HttpResponse}
 import com.socrata.http.server.responses._
 import com.socrata.http.server.implicits._
-import javax.servlet.http.HttpServletRequest
 import java.util.Locale
 
 trait Resource[From, To] extends Service[From, To] {
@@ -72,9 +71,9 @@ trait Resource[From, To] extends Service[From, To] {
   }
 }
 
-trait SimpleResource extends Resource[HttpServletRequest, HttpResponse] {
+trait SimpleResource extends Resource[HttpRequest, HttpResponse] {
   def methodNotAllowed: HttpService = SimpleResource.defaultMethodNotAllowed(allowedMethods)
-  def methodOf(req: HttpServletRequest) = req.getMethod
+  def methodOf(req: HttpRequest) = req.method
 }
 
 object SimpleResource {

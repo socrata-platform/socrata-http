@@ -4,14 +4,23 @@ import org.eclipse.jetty.server.handler.{HandlerWrapper, AbstractHandler}
 import org.eclipse.jetty.server.{Handler, Request}
 import javax.servlet.http.{HttpServletResponse, HttpServletRequest}
 import java.util.concurrent.atomic.AtomicInteger
+import com.rojoma.simplearm.v2._
 
 private class FunctionHandler(handler: HttpService) extends AbstractHandler {
+  import FunctionHandler._
+
   def handle(target: String, baseRequest: Request, request: HttpServletRequest, response: HttpServletResponse) {
     if(isStarted) {
       baseRequest.setHandled(true)
-      handler(request)(response)
+      using(new ResourceScope("request scope")) { rs =>
+        handler(new ConcreteHttpRequest(request, rs))(response)
+      }
     }
   }
+}
+
+object FunctionHandler {
+  private class ConcreteHttpRequest(val servletRequest: HttpServletRequest, val resourceScope: ResourceScope) extends HttpRequest
 }
 
 private class CountingHandler(underlying: Handler, onFatalException: Throwable => Unit) extends HandlerWrapper {

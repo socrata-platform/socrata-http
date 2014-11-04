@@ -2,8 +2,7 @@ package com.socrata.http.server.routing
 
 import org.scalatest.{FunSuite,MustMatchers}
 
-import com.socrata.http.server.{Service, HttpService, HttpResponse}
-import javax.servlet.http.HttpServletRequest
+import com.socrata.http.server._
 
 class RoutingContextTest extends FunSuite with MustMatchers {
   // TODO: improve this to ensure that the generated code does the right thing
@@ -25,9 +24,21 @@ class RoutingContextTest extends FunSuite with MustMatchers {
     Route("/a/{String}/+", (s: String, xs: Seq[String]) => noop)(List("a","b","c")) must equal (Some(null))
   }
 
+  test("Route compiles with a custom request type") {
+    class MyRequest(underlying: HttpRequest) extends WrapperHttpRequest(underlying)
+    val routeContext = new RouteContext[MyRequest, HttpResponse]
+    import routeContext._
+    val noop: Service = null
+    Route("/foo", noop)(List("foo")) must equal (Some(null))
+    Route("/foo", noop)(List("bar")) must equal (None)
+    Route("/foo", noop)(List("foo","bar")) must equal (None)
+    Route("/a/{String}", (s: String) => noop)(List("a","b")) must equal (Some(null))
+    Route("/a/{String}/+", (s: String, xs: Seq[String]) => noop)(List("a","b","c")) must equal (Some(null))
+  }
+
   test("Wrapped service compiles") {
-    type Serv = Service[(Int, HttpServletRequest), HttpResponse]
-    val ctx = new RouteContext[(Int, HttpServletRequest), HttpResponse]
+    type Serv = Service[(Int, HttpRequest), HttpResponse]
+    val ctx = new RouteContext[(Int, HttpRequest), HttpResponse]
     import ctx._
     val noop: Serv = null
     Directory("/foo")

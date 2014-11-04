@@ -9,10 +9,13 @@ import java.io._
 import com.socrata.http.server._
 import com.socrata.http.server.implicits._
 
-trait InputByteCountingFilter extends SimpleFilter[HttpServletRequest, HttpResponse] {
-  def apply(req: HttpServletRequest, service: HttpService): HttpResponse = {
-    val wrapper = new CountingHttpServletRequest(req)
-    service(wrapper) ~> (_ => read(wrapper.bytesRead))
+trait InputByteCountingFilter extends SimpleFilter[HttpRequest, HttpResponse] {
+  def apply(req: HttpRequest, service: HttpService): HttpResponse = {
+    val servletRequestWrapper = new CountingHttpServletRequest(req.servletRequest)
+    val wrapper = new WrapperHttpRequest(req) {
+      override def servletRequest = servletRequestWrapper
+    }
+    service(wrapper) ~> (_ => read(servletRequestWrapper.bytesRead))
   }
 
   def read(bytes: Long)
