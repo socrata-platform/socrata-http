@@ -28,17 +28,7 @@ import com.socrata.http.common.util.{CharsetFor, AcknowledgeableInputStream, Ack
  *       than once, an [[java.lang.IllegalStateException]] will be thrown.
  */
 trait Response extends ResponseInfo {
-  /**
-   * Detects whether the response contains JSON data.
-   *
-   * @return whether or not the headers claim the content to be JSON.
-   * @throws com.socrata.http.client.exceptions.UnparsableContentType if the `Content-Type` header does not contain
-   *                                                                    a valid MIME type.
-   * @throws com.socrata.http.client.exceptions.MultipleContentTypesInResponse if there is more than one `Content-Type`
-   *                                                                             header in the response.
-   */
-  @deprecated(message = "Check the content-type yourself", since="2.3.0")
-  def isJson: Boolean
+  import Response._
 
   /**
    * Detects the character encoding of the response body.
@@ -59,96 +49,7 @@ trait Response extends ResponseInfo {
   /** `true` if the stream has been created. */
   def streamCreated: Boolean
 
-  /** Gets the response body as an `InputStream`.  The returned input stream will
-    * throw a [[com.socrata.http.common.util.TooMuchDataWithoutAcknowledgement]] exception
-    * if it receives more than `maximumSizeBetweenAcks` bytes without having its `acknowledge()`
-    * method called.
-    *
-    * @throws java.lang.IllegalStateException if the stream has already been created.
-    */
-  @deprecated(message = "prefer `inputStream`", since = "2.3.0") // just because I'm renaming everything else too
-  def asInputStream(maximumSizeBetweenAcks: Long = Long.MaxValue): InputStream with Acknowledgeable
-
-  /** Gets the response body as a `Reader`.  The returned reader will
-    * throw a [[com.socrata.http.common.util.TooMuchDataWithoutAcknowledgement]] exception
-    * if it receives more than `maximumSizeBetweenAcks` bytes without having its `acknowledge()`
-    * method called.
-    *
-    * @throws java.lang.IllegalStateException if the stream has already been created.
-    * @throws com.socrata.http.client.exceptions.UnparsableContentType if `charset` is `None` and the `Content-Type`
-    *                                                                    header does not contain a valid MIME type.
-    * @throws com.socrata.http.client.exceptions.MultipleContentTypesInResponse if `charset` is `None` and there is more
-    *                                                                             than one `Content-Type` header in the response.
-    * @throws com.socrata.http.client.exceptions.IllegalCharsetName if `charset` is `None` and the `Content-Type` header contains
-    *                                                                 an invalid `charset` parameter.
-    * @throws com.socrata.http.client.exceptions.UnsupportedCharset if `charset` is `None` and the `Content-Type` header contains
-    *                                                                 a valid but unknown `charset` parameter.
-    */
-  @deprecated(message = "prefer `reader`", since = "2.3.0")
-  def asReader(maximumSizeBetweenAcks: Long = Long.MaxValue): Reader with Acknowledgeable
-
-  /** Gets the response body as an `Iterator[JsonEvent]`.  The returned iterator will
-    * throw a [[com.socrata.http.common.util.TooMuchDataWithoutAcknowledgement]] exception
-    * if it receives more than `maximumSizeBetweenAcks` bytes without having its `acknowledge()`
-    * method called.  It may also throw a `JsonReaderException` if the body is not well-formed
-    * JSON.
-    *
-    * @throws java.lang.IllegalStateException if the stream has already been created.
-    * @throws com.socrata.internal.http.exceptions.ContentTypeException if the response does not have an interpretable `Content-type`
-    *                                                                   or if it is not application/json.
-    */
-  @deprecated(message = "prefer `jsonEvents` or `jsonEvents3`", since = "2.3.0")
-  def asJsonEvents(maximumSizeBetweenAcks: Long = Long.MaxValue): Iterator[JsonEvent] with Acknowledgeable
-
-  /** Gets the response body as a `JValue`.
-    *
-    * @throws java.lang.IllegalStateException if the stream has already been created.
-    * @throws com.socrata.internal.http.util.TooMuchDataWithoutAcknowledgement if parsing the JValue
-    *                                                                          requires reading more than `approximateMaximumSize`
-    *                                                                          bytes from the response.
-    * @throws com.socrata.internal.http.exceptions.ContentTypeException if the response does not have an interpretable `Content-type`
-    *                                                                   or if it is not application/json.
-    * @throws com.rojoma.json.io.JsonReaderException if the response is ill-formed.
-    */
-  @deprecated(message = "prefer `jValue` or `jValue3`", since = "2.3.0")
-  def asJValue(approximateMaximumSize: Long = Long.MaxValue): JValue
-
-  /** Gets the response body as an instance of a class which is convertable from JSON.
-    *
-    * @throws java.lang.IllegalStateException if the stream has already been created.
-    * @throws com.socrata.http.common.util.TooMuchDataWithoutAcknowledgement if parsing the JValue
-    *                                                                          requires reading more than `approximateMaximumSize`
-    *                                                                          bytes from the response.
-    * @throws com.socrata.http.client.exceptions.ContentTypeException if the response does not have an interpretable `Content-type` or if
-    *                                                                   it is not application/json.
-    * @throws com.rojoma.json.io.JsonReaderException if the response is ill-formed.
-    */
-  @deprecated(message = "prefer `value` or `value3`", since = "2.3.0")
-  def asValue[T : JsonCodec](approximateMaximumSize: Long = Long.MaxValue): Option[T]
-
-  /** Gets the response body as an instance of a class which is convertable from JSON.
-    *
-    * The retured iterator may throw `JsonArrayIterator.ElementDecodeException` if one if its elements
-    * cannot be decoded to `T`.
-    *
-    * @throws java.lang.IllegalStateException if the stream has already been created.
-    * @throws com.socrata.http.common.util.TooMuchDataWithoutAcknowledgement if parsing the JValue
-    *                                                                          requires reading more than `approximateMaximumSize`
-    *                                                                          bytes from the response.
-    * @throws com.socrata.http.client.exceptions.ContentTypeException if the response does not have an interpretable `Content-type` or if
-    *                                                                   it is not application/json.
-    * @throws com.rojoma.json.io.JsonReaderException if the response is ill-formed or it is not an array.
-    */
-  @deprecated(message = "prefer `array` or `array3`", since = "2.3.0")
-  def asArray[T : JsonCodec](approximateMaximumElementSize: Long = Long.MaxValue): Iterator[T]
-}
-
-final class AugmentedResponse(val self: Response) extends AnyVal {
-  import AugmentedResponse._
-  import Response.ContentP
-  import self._
-
-  def contentType = self.headers("content-type") match {
+  def contentType = headers("content-type") match {
     case Array(ct) =>
       try {
         Some(new MimeType(ct))
@@ -169,8 +70,7 @@ final class AugmentedResponse(val self: Response) extends AnyVal {
     *
     * @throws java.lang.IllegalStateException if the stream has already been created.
     */
-  def inputStream(maximumSizeBetweenAcks: Long = Long.MaxValue): InputStream with Acknowledgeable =
-    asInputStream(maximumSizeBetweenAcks)
+  def inputStream(maximumSizeBetweenAcks: Long = Long.MaxValue): InputStream with Acknowledgeable
 
   /** Gets the response body as a `Reader`.  The returned reader will
     * throw a [[com.socrata.http.common.util.TooMuchDataWithoutAcknowledgement]] exception
@@ -193,7 +93,7 @@ final class AugmentedResponse(val self: Response) extends AnyVal {
     // in order to preserve binary compatibility, the StandardReader#asReader method must
     // return an InputStreamReader.  Therefore, the result of this method gets dowcast there
     // as I don't want THIS method falling into that same trap.
-    new InputStreamReader(stream, charset.getOrElse(self.charset)) with Acknowledgeable {
+    new InputStreamReader(stream, charset.getOrElse(this.charset)) with Acknowledgeable {
       def acknowledge() = stream.acknowledge()
     }
   }
@@ -322,7 +222,22 @@ final class AugmentedResponse(val self: Response) extends AnyVal {
     new AcknowledgingIterator[T, JsonEvent3](jsonEvents3(acceptableContentType, approximateMaximumElementSize), JsonArrayIterator3[T](_))
 }
 
-object AugmentedResponse {
+object Response {
+  private val appJson = new MimeType("application/json")
+  private val appGeoJson = new MimeType("application/vnd.geo+json")
+  private val textPlain = new MimeType("text/plain")
+
+  def matches(pattern: MimeType, candidate: MimeType): Boolean =
+    pattern.getPrimaryType == candidate.getPrimaryType && (pattern.getSubType == "*" || pattern.getSubType == candidate.getSubType)
+
+  def acceptJson(mimeType: Option[MimeType]) = mimeType.fold(false)(matches(appJson, _))
+  def acceptGeoJson(mimeType: Option[MimeType]) = mimeType.fold(false) { mt =>
+    matches(appJson, mt) || matches(appGeoJson, mt)
+  }
+  def acceptTextPlain(mimeType: Option[MimeType]) = mimeType.fold(false)(matches(textPlain, _))
+
+  type ContentP = Option[MimeType] => Boolean
+
   private class AcknowledgingIterator[T, U](events: Iterator[U] with Acknowledgeable, decoder: Iterator[U] => Iterator[T]) extends Iterator[T] {
     val rawIt = decoder(events)
 
@@ -336,25 +251,6 @@ object AugmentedResponse {
       rawIt.next()
     }
   }
-}
-
-object Response {
-  private val appJson = new MimeType("application/json")
-  private val appGeoJson = new MimeType("application/vnd.geo+json")
-  private val textPlain = new MimeType("text/plain")
-
-  implicit def augmentedResponse(r: Response) = new AugmentedResponse(r)
-
-  def matches(pattern: MimeType, candidate: MimeType): Boolean =
-    pattern.getPrimaryType == candidate.getPrimaryType && (pattern.getSubType == "*" || pattern.getSubType == candidate.getSubType)
-
-  def acceptJson(mimeType: Option[MimeType]) = mimeType.fold(false)(matches(appJson, _))
-  def acceptGeoJson(mimeType: Option[MimeType]) = mimeType.fold(false) { mt =>
-    matches(appJson, mt) || matches(appGeoJson, mt)
-  }
-  def acceptTextPlain(mimeType: Option[MimeType]) = mimeType.fold(false)(matches(textPlain, _))
-
-  type ContentP = Option[MimeType] => Boolean
 }
 
 class StandardResponse(responseInfo: ResponseInfo, rawInputStream: InputStream) extends Response { self =>
