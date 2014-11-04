@@ -218,30 +218,44 @@ object AbstractSocrataServerJetty {
   abstract class Options {
     type OptT <: Options
 
+    /** Called when a TERM or INT signal is received, after shutting down the listening socket but before
+      * waiting for pending requests to terminate.
+      */
     val onStop: () => Unit
     def withOnStop(callback: () => Unit): OptT
 
+    /** Port to listen on.  "0" means to choose a port at random.
+      */
     val port: Int
     def withPort(p: Int): OptT
 
+    /** A system to inform of (un)readiness. */
     val broker: ServerBroker
     def withBroker(b: ServerBroker): OptT
 
+    /** Amount of time to give the broker before shutting down the listening socket. */
     val deregisterWait: FiniteDuration
     def withDeregisterWait(dw: FiniteDuration): OptT
 
+    /** Maximum amount of time to wait for in-progress requests to stop. */
     val gracefulShutdownTimeout: Duration
     def withGracefulShutdownTimeout(gst: Duration): OptT
 
+    /** A function to handle fatal exceptions */
     val onFatalException: Throwable => Unit
     def withOnFatalException(callback: Throwable => Unit): OptT
 
+    /** GZIP encoding parameters */
     val gzipOptions: Option[Gzip.Options]
     def withGzipOptions(gzo: Option[Gzip.Options]): OptT
 
+    /** Whether or not SIGTERM and SIGINT are watched to shut down */
     val hookSignals: Boolean
     def withHookSignals(enabled: Boolean): OptT
 
+    /** A list of functions that take a base Jetty Handler and return a wrapped Handler.
+      * An example of where this is useful is for instrumenting with MetricsHandler.
+      */
     val extraHandlers: List[Handler => Handler]
     def withExtraHandlers(handlers: List[Handler => Handler]): OptT
   }

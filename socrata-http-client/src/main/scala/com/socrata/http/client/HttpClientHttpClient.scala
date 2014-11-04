@@ -33,19 +33,6 @@ class HttpClientHttpClient(executor: Executor, options: HttpClientHttpClient.Opt
   import HttpClient._
   import options._
 
-  @deprecated("Use HttpClientHttpClient.Options instead", since="2.1.0")
-  def this(livenessChecker: LivenessChecker,
-           executor: Executor,
-           continueTimeout: Option[Int] = None, // no longer used!  Here only for source compatibility
-           userAgent: String = "HttpClientHttpClient",
-           sslContext: SSLContext = SSLContext.getDefault,
-           contentCompression: Boolean = false) =
-    this(executor, HttpClientHttpClient.defaultOptions.
-      withLivenessChecker(livenessChecker).
-      withUserAgent(userAgent).
-      withSSLContext(sslContext).
-      withContentCompression(contentCompression))
-
   private[this] val connectionManager = locally {
     val connManager = new PoolingHttpClientConnectionManager()
     connManager.setDefaultMaxPerRoute(Int.MaxValue)
