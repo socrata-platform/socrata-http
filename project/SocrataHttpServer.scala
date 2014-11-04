@@ -12,6 +12,7 @@ object SocrataHttpServer {
         jodaTime,
         scalaReflect(sv),
         simpleArm,
+        simpleArm2,
         slf4jApi,
         scalaCheck % "test"
       )
