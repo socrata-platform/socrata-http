@@ -253,7 +253,7 @@ object AbstractSocrataServerJetty {
     deregisterWait: FiniteDuration = 5.seconds,
     gracefulShutdownTimeout: Duration = Duration.Inf,
     onFatalException: Throwable => Unit = shutDownJVM,
-    gzipOptions: Option[Gzip.Options] = None,
+    gzipOptions: Option[Gzip.Options] = Some(Gzip.defaultOptions),
     hookSignals: Boolean = true,
     extraHandlers: List[Handler => Handler] = Nil
   ) extends Options {
