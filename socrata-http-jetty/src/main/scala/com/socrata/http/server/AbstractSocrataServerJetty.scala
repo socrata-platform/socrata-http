@@ -299,8 +299,6 @@ object AbstractSocrataServerJetty {
       override def withBufferSize(bs: Int): Options = copy(bufferSize = bs)
     }
 
-    object Options {
-      def apply(): Options = OptionsImpl()
-    }
+    val defaultOptions: Options = OptionsImpl()
   }
 }
