@@ -196,11 +196,13 @@ object Response {
   }
 }
 
-class StandardResponse(responseInfo: ResponseInfo, rawInputStream: InputStream) extends Response { self =>
+class StandardResponse(responseInfo: ResponseInfo, rawInputStream: InputStream) extends Response {
   private[this] var _streamCreated = false
   def streamCreated = _streamCreated
 
-  lazy val charset = self.contentType match {
+  override lazy val contentType = super.contentType
+
+  lazy val charset = contentType match {
     case Some(ct) =>
       CharsetFor.mimeType(ct) match {
         case CharsetFor.Success(cs) => cs
