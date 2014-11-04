@@ -34,8 +34,17 @@ object HttpRequest {
     def hostname =
       header("X-Socrata-Host").orElse(header("Host")).getOrElse("").split(':').head
 
-    def requestPath: List[String] = // TODO: strip off any context and/or servlet path
-      requestPathStr.split("/", -1 /* I hate you, Java */).iterator.drop(1).map(URLDecoder.decode(_, "UTF-8")).toList
+    def requestPath: Option[List[String]] = { // TODO: strip off any context and/or servlet path
+      val decodeSegment = { segment: String =>
+        try {
+          URLDecoder.decode(segment, "UTF-8")
+        } catch {
+          case _: IllegalArgumentException => // undecodable segment; malformed %-encoding
+            return None
+        }
+      }
+      Some(requestPathStr.split("/", -1 /* I hate you, Java */).iterator.drop(1).map(decodeSegment).toList)
+    }
 
     def requestPathStr = servletRequest.getRequestURI
 
@@ -88,7 +97,7 @@ object HttpRequest {
     }
 
     def negotiateContent(implicit contentNegotiation: ContentNegotiation) = {
-      val filename = requestPath.last
+      val filename = requestPath.map(_.last).getOrElse("")
       val dotpos = filename.lastIndexOf('.')
       val ext = if(dotpos >= 0) Some(filename.substring(dotpos + 1)) else None
       contentNegotiation(accept.toSeq, contentType, ext, acceptCharset.toSeq, acceptLanguage.toSeq)
