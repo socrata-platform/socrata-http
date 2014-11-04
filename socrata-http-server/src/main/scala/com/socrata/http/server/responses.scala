@@ -1,13 +1,14 @@
 package com.socrata.http.server
 
 import javax.servlet.http.HttpServletResponse
-import java.io.{OutputStream, Writer}
+import java.io.{OutputStreamWriter, OutputStream, Writer}
 import java.net.URL
 
+import com.rojoma.json.v3.ast.JString
+import com.rojoma.simplearm.v2._
+import com.socrata.http.common.util.CharsetFor
 import implicits._
-import com.socrata.http.server.util.{EntityTagRenderer, WeakEntityTag, StrongEntityTag, EntityTag}
-import org.apache.commons.codec.binary.Base64
-import com.socrata.http.server.`-impl`.TroubleUnignoringWriter
+import com.socrata.http.server.util.{EntityTagRenderer, EntityTag}
 import org.joda.time.DateTime
 
 object responses {
@@ -32,11 +33,36 @@ object responses {
 
   def LastModified(lastModified: DateTime) = Header("Last-Modified", lastModified.toHttpDate)
 
-  def Write(f: Writer => Unit) = r { resp => f(new TroubleUnignoringWriter(resp.getWriter)) }
-  def Stream(f: OutputStream => Unit) = r { resp => f(resp.getOutputStream) }
+  def Write(f: Writer => Unit) = r { resp =>
+    val contentType = Option(resp.getContentType).orElse(Option(resp.getHeader("content-type"))).getOrElse {
+      throw new IllegalStateException("Must set a content-type before writing textual data")
+    }
+    CharsetFor.contentType(contentType) match {
+      case CharsetFor.Success(cs) =>
+        using(new OutputStreamWriter(resp.getOutputStream, cs) { override def close() = flush() }) { w =>
+          f(w)
+        }
+      case CharsetFor.UnparsableContentType(ct) =>
+        throw new IllegalStateException("Unable to parse the content-type response header " + JString(ct))
+      case CharsetFor.UnknownCharset(cs) =>
+        throw new IllegalStateException("Unknown charset " + JString(cs))
+      case CharsetFor.IllegalCharsetName(cs) =>
+        throw new IllegalStateException("Illegal charset name " + JString(cs))
+      case CharsetFor.UnknownMimeType(mt) =>
+        throw new IllegalStateException("Don't know what charset to use for mime type " + JString(mt.toString) + "; set a charset parameter or register the mime type")
+    }
+  }
+
   def Content(content: String) = {
     require(content ne null)
-    Write { _.write(content) }
+    Write(_.write(content))
+  }
+
+  def Stream(f: OutputStream => Unit) = r { resp => f(resp.getOutputStream) }
+
+  def ContentBytes(content: Array[Byte]) = {
+    require(content ne null)
+    Stream(_.write(content))
   }
 
   // 2xx
