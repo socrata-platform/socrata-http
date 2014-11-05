@@ -50,6 +50,32 @@ object HttpRequest {
 
     def queryStr = servletRequest.getQueryString
 
+    def queryParametersSeq: Option[Seq[(String, Option[String])]] = {
+      try {
+        Option(queryStr) map { s =>
+          s.split("&|;").map(_.split("=", 2)).collect {
+            case Array(key, value) =>
+              URLDecoder.decode(key, "UTF-8") -> Some(URLDecoder.decode(value, "UTF-8"))
+            case Array(key) =>
+              URLDecoder.decode(key, "UTF-8") -> None
+          }
+        }
+      } catch {
+        case _ : IllegalArgumentException =>
+          None
+      }
+    }
+
+    /**
+     * Precondition: There are no empty or repeated parameters.
+     * @return A map of the parameters.
+     */
+    def queryParameters: Option[Map[String,String]] = queryParametersSeq map { s =>
+      s.collect {
+        case (k, Some(v)) => k -> v
+      }(scala.collection.breakOut) // relax inference
+    }
+
     def method: String = servletRequest.getMethod
 
     def header(name: String): Option[String] =
