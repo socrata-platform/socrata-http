@@ -1,6 +1,7 @@
 package com.socrata.http.server
 
 import java.io.{InputStreamReader, Reader}
+import java.util.regex.Pattern
 
 import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.http.common.util.CharsetFor.UnparsableContentType
@@ -24,10 +25,15 @@ class WrapperHttpRequest(val underlying: HttpRequest) extends HttpRequest {
 }
 
 object HttpRequest {
-  implicit def httpRequestApi(req: HttpRequest): HttpRequestApi = new HttpRequestApi(req)
+  implicit def httpRequestApi(req: HttpRequest) = new HttpRequestApi(req)
+
+  object HttpRequestApi {
+    private val QueryStringParameterSeparator = Pattern.compile("[&;]")
+  }
 
   // This will allow us to add more (stateless) methods to HttpRequest without breaking binary compatibility
   final class HttpRequestApi(val `private once 2.10 is no longer a thing`: HttpRequest) extends AnyVal {
+    import HttpRequestApi._
     private def self = `private once 2.10 is no longer a thing`
     private def servletRequest = self.servletRequest
 
@@ -50,18 +56,26 @@ object HttpRequest {
     /** @return The undecoded request path as a string */
     def requestPathStr = servletRequest.getRequestURI
 
-    def queryStr = servletRequest.getQueryString
+    /** @return `None` if there is no query string; the query string otherwise. */
+    def queryStr = Option(servletRequest.getQueryString)
 
+    /** @return `None` if the query string has malformed percent-encoding; a list of key-value parameters otherwise. */
     def queryParametersSeq: Option[Seq[(String, Option[String])]] = {
       try {
-        Option(queryStr) map { s =>
-          s.split("&|;").map(_.split("=", 2)).collect {
-            case Array(key, value) =>
-              URLDecoder.decode(key, "UTF-8") -> Some(URLDecoder.decode(value, "UTF-8"))
-            case Array(key) =>
-              URLDecoder.decode(key, "UTF-8") -> None
-          }
+        val params = queryStr match {
+          case Some(q) if q.nonEmpty =>
+            QueryStringParameterSeparator.split(q, -1).map { kv =>
+              kv.split("=", 2) match {
+                case Array(key, value) =>
+                  URLDecoder.decode(key, "UTF-8") -> Some(URLDecoder.decode(value, "UTF-8"))
+                case Array(key) =>
+                  URLDecoder.decode(key, "UTF-8") -> None
+              }
+            }
+          case _ =>
+            Array.empty
         }
+        Some(params)
       } catch {
         case _ : IllegalArgumentException =>
           None
@@ -70,7 +84,7 @@ object HttpRequest {
 
     /**
       * Precondition: There are no empty or repeated parameters.
-      * @return A map of the parameters.
+      * @return A map of the parameters, or `None` if the query string contains malformed percent-encoding.
       */
     def queryParameters: Option[Map[String,String]] = queryParametersSeq map { s =>
       s.collect {
