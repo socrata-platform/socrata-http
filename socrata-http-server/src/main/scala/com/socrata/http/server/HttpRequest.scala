@@ -34,6 +34,7 @@ object HttpRequest {
     def hostname =
       header("X-Socrata-Host").orElse(header("Host")).getOrElse("").split(':').head
 
+    /** @return `None` if the request path contains malformed percent-encoding; the split and decoded request path otherwise. */
     def requestPath: Option[List[String]] = { // TODO: strip off any context and/or servlet path
       val decodeSegment = { segment: String =>
         try {
@@ -46,6 +47,7 @@ object HttpRequest {
       Some(requestPathStr.split("/", -1 /* I hate you, Java */).iterator.drop(1).map(decodeSegment).toList)
     }
 
+    /** @return The undecoded request path as a string */
     def requestPathStr = servletRequest.getRequestURI
 
     def queryStr = servletRequest.getQueryString
