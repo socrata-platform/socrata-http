@@ -67,9 +67,9 @@ object HttpRequest {
     }
 
     /**
-     * Precondition: There are no empty or repeated parameters.
-     * @return A map of the parameters.
-     */
+      * Precondition: There are no empty or repeated parameters.
+      * @return A map of the parameters.
+      */
     def queryParameters: Option[Map[String,String]] = queryParametersSeq map { s =>
       s.collect {
         case (k, Some(v)) => k -> v
@@ -99,7 +99,7 @@ object HttpRequest {
               Right(new InputStreamReader(servletRequest.getInputStream, cs))
             case e: CharsetFor.ContentTypeFailure =>
               Left(e)
-        }
+          }
         case None =>
           Left(UnparsableContentType("")) // ehhhhhhh
       }
