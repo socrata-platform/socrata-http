@@ -26,7 +26,7 @@ class WrapperHttpRequest(val underlying: HttpRequest) extends HttpRequest {
 object HttpRequest {
   implicit def httpRequestApi(req: HttpRequest): HttpRequestApi = new HttpRequestApi(req)
 
-  // This will allow us to add more (stateless) methods to HttpRequest without braking binary compatibility
+  // This will allow us to add more (stateless) methods to HttpRequest without breaking binary compatibility
   final class HttpRequestApi(val `private once 2.10 is no longer a thing`: HttpRequest) extends AnyVal {
     private def self = `private once 2.10 is no longer a thing`
     private def servletRequest = self.servletRequest
