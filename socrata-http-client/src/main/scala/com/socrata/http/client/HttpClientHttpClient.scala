@@ -91,17 +91,11 @@ class HttpClientHttpClient(executor: Executor, options: HttpClientHttpClient.Opt
 
     val scope = new ResourceScope("http client")
     try {
-      scope.open {
-        pingTarget match {
-          case Some(target) => livenessChecker.check(target) { abortReason = LivenessCheck; req.abort() }
-          case None => NoopCloseable
-        }
+      pingTarget.foreach { target =>
+        scope.open { livenessChecker.check(target) { abortReason = LivenessCheck; req.abort() } }
       }
-      scope.open {
-        timeout match {
-          case Some(ms) => timeoutManager.addJob(ms) { abortReason = FullTimeout; req.abort() }
-          case None => NoopCloseable
-        }
+      timeout.foreach { ms =>
+        scope.open { timeoutManager.addJob(ms) { abortReason = FullTimeout; req.abort() } }
       }
 
       val response = try {

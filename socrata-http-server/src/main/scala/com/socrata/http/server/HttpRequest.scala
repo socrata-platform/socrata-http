@@ -73,7 +73,7 @@ object HttpRequest {
               }
             }
           case _ =>
-            Array.empty
+            Array.empty[(String,Option[String])] // Type annotation to work around Scala bug wrt array variance
         }
         Some(params)
       } catch {
