@@ -2,7 +2,9 @@ package com.socrata.http.client
 
 import java.io.{ByteArrayOutputStream, InputStream}
 
-import com.rojoma.json.io.JsonEvent
+import com.rojoma.json.v3.ast.JValue
+import com.rojoma.json.v3.codec.JsonEncode
+import com.rojoma.json.v3.io.{JsonEvent, JValueEventIterator}
 import com.socrata.http.common.util.HttpUtils
 import com.socrata.http.common.livenesscheck.LivenessCheckInfo
 import java.net.{URL, URI, URISyntaxException}
@@ -16,17 +18,17 @@ import java.nio.ByteBuffer
  *  - Updaters which are called `addX` ''augment'' any existing values with a single item.
  *  - Updaters which are caleld `addXs` ''augment'' any existing values with a collection of items.
  */
-class RequestBuilder private (val host: String,
-                              val secure: Boolean,
-                              val port: Int,
-                              val path: Iterable[String],
-                              val query: Iterable[(String, String)],
-                              val headers: Iterable[(String, String)],
-                              val method: Option[String],
-                              val connectTimeoutMS: Option[Int],
-                              val receiveTimeoutMS: Option[Int],
-                              val timeoutMS: Option[Int],
-                              val livenessCheckInfo: Option[LivenessCheckInfo]) {
+final class RequestBuilder private (val host: String,
+                                    val secure: Boolean,
+                                    val port: Int,
+                                    val path: Iterable[String],
+                                    val query: Iterable[(String, String)],
+                                    val headers: Iterable[(String, String)],
+                                    val method: Option[String],
+                                    val connectTimeoutMS: Option[Int],
+                                    val receiveTimeoutMS: Option[Int],
+                                    val timeoutMS: Option[Int],
+                                    val livenessCheckInfo: Option[LivenessCheckInfo]) {
   def copy(host: String = this.host,
            secure: Boolean = this.secure,
            port: Int = this.port,
@@ -171,6 +173,9 @@ class RequestBuilder private (val host: String,
    */
   def json(contents: Iterator[JsonEvent]) =
     new JsonHttpRequest(this.finish("POST"), contents)
+
+  def jsonValue[T : JsonEncode](contents: JValue) =
+    new JsonHttpRequest(this.finish("POST"), JValueEventIterator(JsonEncode.toJValue(contents)))
 
   /**
    * @note This does ''not'' take ownership of the input stream.  It must remain open for the
