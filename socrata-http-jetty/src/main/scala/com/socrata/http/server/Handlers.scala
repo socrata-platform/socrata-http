@@ -7,20 +7,23 @@ import java.util.concurrent.atomic.AtomicInteger
 import com.rojoma.simplearm.v2._
 
 private class FunctionHandler(handler: HttpService) extends AbstractHandler {
-  import FunctionHandler._
-
-  def handle(target: String, baseRequest: Request, request: HttpServletRequest, response: HttpServletResponse) {
+  def handle(target: String, baseRequest: Request, request: HttpServletRequest, response: HttpServletResponse): Unit = {
     if(isStarted) {
       baseRequest.setHandled(true)
       using(new ResourceScope("request scope")) { rs =>
-        handler(new ConcreteHttpRequest(request, rs))(response)
+        val request = new ConcreteHttpRequest(new HttpRequest.AugmentedHttpServletRequest(baseRequest), rs)
+        try {
+          request.queryParametersSeq
+          request.requestPath
+        } catch {
+          case _: IllegalArgumentException =>
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST)
+            return
+        }
+        handler(request)(response)
       }
     }
   }
-}
-
-object FunctionHandler {
-  private class ConcreteHttpRequest(val servletRequest: HttpServletRequest, val resourceScope: ResourceScope) extends HttpRequest
 }
 
 private class CountingHandler(underlying: Handler, onFatalException: Throwable => Unit) extends HandlerWrapper {

@@ -1,5 +1,11 @@
 package com.socrata.http.server
 
+import javax.servlet.http.{HttpServletResponse, HttpServletRequest}
+
+import com.rojoma.simplearm.v2.ResourceScope
+import com.socrata.http.server.HttpRequest.AugmentedHttpServletRequest
+import org.eclipse.jetty.server.handler.ErrorHandler
+
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 
@@ -8,9 +14,10 @@ import sun.misc.SignalHandler
 import java.util.concurrent.Semaphore
 
 import com.socrata.util.logging.LazyStringLogger
-import org.eclipse.jetty.server.{ServerConnector, Handler, Server}
+import org.eclipse.jetty.server.{Request, ServerConnector, Handler, Server}
 import org.eclipse.jetty.servlets.gzip.GzipHandler
 import org.eclipse.jetty.util.component.LifeCycle
+import com.rojoma.simplearm.v2._
 
 /**
  * Base class for Socrata HTTP Servers.  Manages server lifecycle, including graceful
@@ -44,6 +51,18 @@ abstract class AbstractSocrataServerJetty(handler: Handler, options: AbstractSoc
     val wrappedHandler = ((gzipHandler _) :: options.extraHandlers).foldLeft[Handler](handler) { (h, wrapper) => wrapper(h) }
     val countingHandler = new CountingHandler(wrappedHandler, onFatalException)
     server.setHandler(countingHandler)
+
+    options.errorHandler.foreach { errorHandler =>
+      server.addBean(new ErrorHandler {
+        override def handle(target: String, baseRequest: Request, request: HttpServletRequest, response: HttpServletResponse): Unit = {
+          using(new ResourceScope("error handler")) { rs =>
+            val req = new ConcreteHttpRequest(new AugmentedHttpServletRequest(request), rs)
+            baseRequest.setHandled(true)
+            errorHandler(req)(response)
+          }
+        }
+      })
+    }
 
     val mbContainer = new org.eclipse.jetty.jmx.MBeanContainer(java.lang.management.ManagementFactory.getPlatformMBeanServer)
     server.addBean(mbContainer)
@@ -258,6 +277,9 @@ object AbstractSocrataServerJetty {
       */
     val extraHandlers: List[Handler => Handler]
     def withExtraHandlers(handlers: List[Handler => Handler]): OptT
+
+    val errorHandler: Option[HttpRequest => HttpResponse]
+    def withErrorHandler(handler: Option[HttpRequest => HttpResponse]): OptT
   }
 
   private case class OptionsImpl(
@@ -269,7 +291,8 @@ object AbstractSocrataServerJetty {
     onFatalException: Throwable => Unit = shutDownJVM,
     gzipOptions: Option[Gzip.Options] = Some(Gzip.defaultOptions),
     hookSignals: Boolean = true,
-    extraHandlers: List[Handler => Handler] = Nil
+    extraHandlers: List[Handler => Handler] = Nil,
+    errorHandler: Option[HttpRequest => HttpResponse] = None
   ) extends Options {
     type OptT = OptionsImpl
 
@@ -282,6 +305,7 @@ object AbstractSocrataServerJetty {
     override def withGzipOptions(gzo: Option[Gzip.Options]) = copy(gzipOptions = gzo)
     override def withHookSignals(enabled: Boolean) = copy(hookSignals = enabled)
     override def withExtraHandlers(h: List[Handler => Handler]) = copy(extraHandlers = h)
+    override def withErrorHandler(h: Option[HttpRequest => HttpResponse]) = copy(errorHandler = h)
   }
 
   val defaultOptions: Options = OptionsImpl()

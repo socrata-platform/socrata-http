@@ -54,7 +54,8 @@ object SocrataServerJettyServlet {
     onStop: () => Unit = AbstractSocrataServerJetty.defaultOptions.onStop,
     port: Int = AbstractSocrataServerJetty.defaultOptions.port,
     hookSignals: Boolean = AbstractSocrataServerJetty.defaultOptions.hookSignals,
-    extraHandlers: List[Handler => Handler] = AbstractSocrataServerJetty.defaultOptions.extraHandlers
+    extraHandlers: List[Handler => Handler] = AbstractSocrataServerJetty.defaultOptions.extraHandlers,
+    errorHandler: Option[HttpRequest => HttpResponse] = None
   ) extends Options {
     type OptT = OptionsImpl
 
@@ -70,6 +71,7 @@ object SocrataServerJettyServlet {
     override def withGzipOptions(gzo: Option[Gzip.Options]) = copy(gzipOptions = gzo)
     override def withHookSignals(enabled: Boolean) = copy(hookSignals = enabled)
     override def withExtraHandlers(h: List[Handler => Handler]) = copy(extraHandlers = h)
+    override def withErrorHandler(h: Option[HttpRequest => HttpResponse]) = copy(errorHandler = h)
   }
 
   val defaultOptions: Options = OptionsImpl()

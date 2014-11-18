@@ -2,6 +2,7 @@ package com.socrata.http.server.util.filters
 
 import javax.servlet.http.{HttpServletRequestWrapper, HttpServletRequest}
 import InputByteCountingFilter._
+import com.socrata.http.server.HttpRequest.AugmentedHttpServletRequest
 import io.Codec
 import javax.servlet.ServletInputStream
 import java.io._
@@ -13,7 +14,7 @@ trait InputByteCountingFilter extends SimpleFilter[HttpRequest, HttpResponse] {
   def apply(req: HttpRequest, service: HttpService): HttpResponse = {
     val servletRequestWrapper = new CountingHttpServletRequest(req.servletRequest)
     val wrapper = new WrapperHttpRequest(req) {
-      override def servletRequest = servletRequestWrapper
+      override def servletRequest = new AugmentedHttpServletRequest(servletRequestWrapper)
     }
     service(wrapper) ~> (_ => read(servletRequestWrapper.bytesRead))
   }

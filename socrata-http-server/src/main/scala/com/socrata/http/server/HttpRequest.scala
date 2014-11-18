@@ -8,16 +8,18 @@ import com.socrata.http.common.util.CharsetFor.UnparsableContentType
 
 import scala.collection.JavaConverters._
 import java.net.URLDecoder
-import javax.servlet.http.HttpServletRequest
+import javax.servlet.http.{HttpServletRequestWrapper, HttpServletRequest}
 
 import com.socrata.http.common.util.{ContentNegotiation, HttpUtils, CharsetFor}
 import com.socrata.http.server.util.PreconditionParser
 import org.joda.time.DateTime
 
 trait HttpRequest {
-  def servletRequest: HttpServletRequest
+  def servletRequest: HttpRequest.AugmentedHttpServletRequest
   def resourceScope: ResourceScope
 }
+
+class ConcreteHttpRequest(val servletRequest: HttpRequest.AugmentedHttpServletRequest, val resourceScope: ResourceScope) extends HttpRequest
 
 class WrapperHttpRequest(val underlying: HttpRequest) extends HttpRequest {
   def servletRequest = underlying.servletRequest
@@ -25,72 +27,80 @@ class WrapperHttpRequest(val underlying: HttpRequest) extends HttpRequest {
 }
 
 object HttpRequest {
-  implicit def httpRequestApi(req: HttpRequest) = new HttpRequestApi(req)
+  private val QueryStringParameterSeparator = Pattern.compile("[&;]")
 
-  object HttpRequestApi {
-    private val QueryStringParameterSeparator = Pattern.compile("[&;]")
+  sealed trait QueryParameter
+  case class ParameterValue(value: Option[String]) extends QueryParameter
+  case object NoSuchParameter extends QueryParameter
+
+  final class AugmentedHttpServletRequest(underlying: HttpServletRequest) extends HttpServletRequestWrapper(underlying) {
+    private[HttpRequest] def requestPathStr = underlying.getRequestURI
+
+    private[HttpRequest] lazy val requestPath: List[String] = // TODO: strip off any context and/or servlet path
+      requestPathStr.split("/", -1 /* I hate you, Java */).iterator.drop(1).map(URLDecoder.decode(_, "UTF-8")).toList
+
+    private[HttpRequest] def queryStr = Option(underlying.getQueryString)
+
+    private[HttpRequest] lazy val queryParametersSeq: Seq[(String, Option[String])] =
+      queryStr match {
+        case Some(q) if q.nonEmpty =>
+          QueryStringParameterSeparator.split(q, -1).map { kv =>
+            kv.split("=", 2) match {
+              case Array(key, value) =>
+                URLDecoder.decode(key, "UTF-8") -> Some(URLDecoder.decode(value, "UTF-8"))
+              case Array(key) =>
+                URLDecoder.decode(key, "UTF-8") -> None
+            }
+          }
+        case _ =>
+          Seq.empty
+      }
+
+    private[HttpRequest] lazy val allQueryParameters: Map[String, Seq[Option[String]]] =
+      Map.empty[String, Seq[Option[String]]] ++ queryParametersSeq.groupBy(_._1).mapValues(_.map(_._2))
+
+    private[HttpRequest] lazy val queryParameters: Map[String,String] = queryParametersSeq.foldLeft(Map.empty[String, String]) { (acc, paramValue) =>
+      paramValue match {
+        case (k, Some(v)) if !acc.contains(k) =>
+          acc + (k -> v)
+        case _ =>
+          acc
+      }
+    }
   }
 
   // This will allow us to add more (stateless) methods to HttpRequest without breaking binary compatibility
-  final class HttpRequestApi(val `private once 2.10 is no longer a thing`: HttpRequest) extends AnyVal {
-    import HttpRequestApi._
+  final implicit class HttpRequestApi(val `private once 2.10 is no longer a thing`: HttpRequest) extends AnyVal {
     private def self = `private once 2.10 is no longer a thing`
     private def servletRequest = self.servletRequest
 
     def hostname =
       header("X-Socrata-Host").orElse(header("Host")).getOrElse("").split(':').head
 
-    /** @return `None` if the request path contains malformed percent-encoding; the split and decoded request path otherwise. */
-    def requestPath: Option[List[String]] = { // TODO: strip off any context and/or servlet path
-      val decodeSegment = { segment: String =>
-        try {
-          URLDecoder.decode(segment, "UTF-8")
-        } catch {
-          case _: IllegalArgumentException => // undecodable segment; malformed %-encoding
-            return None
-        }
-      }
-      Some(requestPathStr.split("/", -1 /* I hate you, Java */).iterator.drop(1).map(decodeSegment).toList)
-    }
-
     /** @return The undecoded request path as a string */
-    def requestPathStr = servletRequest.getRequestURI
+    def requestPathStr = servletRequest.requestPathStr
 
-    /** @return `None` if there is no query string; the query string otherwise. */
-    def queryStr = Option(servletRequest.getQueryString)
+    /** @return the split and decoded request path */
+    def requestPath = servletRequest.requestPath
 
-    /** @return `None` if the query string has malformed percent-encoding; a list of key-value parameters otherwise. */
-    def queryParametersSeq: Option[Seq[(String, Option[String])]] = {
-      try {
-        val params = queryStr match {
-          case Some(q) if q.nonEmpty =>
-            QueryStringParameterSeparator.split(q, -1).map { kv =>
-              kv.split("=", 2) match {
-                case Array(key, value) =>
-                  URLDecoder.decode(key, "UTF-8") -> Some(URLDecoder.decode(value, "UTF-8"))
-                case Array(key) =>
-                  URLDecoder.decode(key, "UTF-8") -> None
-              }
-            }
-          case _ =>
-            Array.empty[(String,Option[String])] // Type annotation to work around Scala bug wrt array variance
-        }
-        Some(params)
-      } catch {
-        case _ : IllegalArgumentException =>
-          None
-      }
-    }
+    /** @return the query string  (i.e., everything after the first "?" in the request's path) */
+    def queryStr = servletRequest.queryStr
+
+    /** @return All query parameters, as a sequence of key-value pairs */
+    def queryParametersSeq = servletRequest.queryParametersSeq
 
     /**
-      * Precondition: There are no empty or repeated parameters.
-      * @return A map of the parameters, or `None` if the query string contains malformed percent-encoding.
-      */
-    def queryParameters: Option[Map[String,String]] = queryParametersSeq map { s =>
-      s.collect {
-        case (k, Some(v)) => k -> v
-      }(scala.collection.breakOut) // relax inference
-    }
+     * @return A map of the parameters which have (possibly empty) values.  The values are the
+     *         first to occur in the query string.
+     */
+    def queryParameters = servletRequest.queryParameters
+
+    /** @return A map of the parameters as a map from parameter names to sequence of values. */
+    def allQueryParameters = servletRequest.allQueryParameters
+
+    /** @return The first value associated with the given parameter in the query string. */
+    def queryParameter(parameter: String): Option[String] =
+      servletRequest.queryParameters.get(parameter)
 
     def method: String = servletRequest.getMethod
 
@@ -139,7 +149,7 @@ object HttpRequest {
     }
 
     def negotiateContent(implicit contentNegotiation: ContentNegotiation) = {
-      val filename = requestPath.map(_.last).getOrElse("")
+      val filename = requestPath.last
       val dotpos = filename.lastIndexOf('.')
       val ext = if(dotpos >= 0) Some(filename.substring(dotpos + 1)) else None
       contentNegotiation(accept.toSeq, contentType, ext, acceptCharset.toSeq, acceptLanguage.toSeq)
