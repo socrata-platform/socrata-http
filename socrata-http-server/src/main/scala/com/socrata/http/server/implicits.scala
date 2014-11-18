@@ -32,4 +32,9 @@ object implicits {
      */
     def toHttpDate: String = underlying.toDateTime(DateTimeZone.UTC).toString(HttpUtils.HttpDateFormat)
   }
+
+  // workaround for (sigh) an IDEA bug.  Without this, it won't recognize that subclasses
+  // of HttpRequest can use the HttpRequestApi.
+  implicit def augmentedHttpRequestSubclass[T <: HttpRequest](x: T): HttpRequest.HttpRequestApi =
+    new HttpRequest.HttpRequestApi(x)
 }
