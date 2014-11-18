@@ -1,10 +1,14 @@
 package com.socrata.http.server
 
+import java.nio.charset.{StandardCharsets, Charset}
+import javax.activation.MimeType
 import javax.servlet.http.HttpServletResponse
 import java.io.{OutputStreamWriter, OutputStream, Writer}
 import java.net.URL
 
-import com.rojoma.json.v3.ast.JString
+import com.rojoma.json.v3.ast.{JValue, JString}
+import com.rojoma.json.v3.codec.JsonEncode
+import com.rojoma.json.v3.util.JsonUtil
 import com.rojoma.simplearm.v2._
 import com.socrata.http.common.util.CharsetFor
 import implicits._
@@ -18,7 +22,8 @@ object responses {
 
   def Status(code: Int) = r(_.setStatus(code))
   def Header(name: String, value: String) = r(_.setHeader(name, value))
-  def ContentType(mime: String) = r(_.setContentType(mime))
+  def ContentType(mime: String): HttpResponse = _.setContentType(mime)
+  def ContentType(mime: MimeType): HttpResponse = ContentType(mime.toString)
   def ContentLength(length: Long) = r(_.setContentLengthLong(length))
 
   def Location(url: URL) = Header("Location", url.toExternalForm)
@@ -33,10 +38,8 @@ object responses {
 
   def LastModified(lastModified: DateTime) = Header("Last-Modified", lastModified.toHttpDate)
 
-  def Write(f: Writer => Unit) = r { resp =>
-    val contentType = Option(resp.getContentType).orElse(Option(resp.getHeader("content-type"))).getOrElse {
-      throw new IllegalStateException("Must set a content-type before writing textual data")
-    }
+  def Write(contentType: MimeType)(f: Writer => Unit): HttpResponse = Write(contentType.toString)(f)
+  def Write(contentType: String)(f: Writer => Unit): HttpResponse = ContentType(contentType) ~> r { resp =>
     CharsetFor.contentType(contentType) match {
       case CharsetFor.Success(cs) =>
         using(new OutputStreamWriter(resp.getOutputStream, cs) { override def close() = flush() }) { w =>
@@ -53,9 +56,10 @@ object responses {
     }
   }
 
-  def Content(content: String) = {
+  def Content(contentType: MimeType, content: String): HttpResponse = Content(contentType.toString, content)
+  def Content(contentType: String, content: String): HttpResponse = {
     require(content ne null)
-    Write(_.write(content))
+    Write(contentType)(_.write(content))
   }
 
   def Stream(f: OutputStream => Unit) = r { resp => f(resp.getOutputStream) }
