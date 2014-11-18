@@ -5,22 +5,28 @@ import org.eclipse.jetty.server.{Handler, Request}
 import javax.servlet.http.{HttpServletResponse, HttpServletRequest}
 import java.util.concurrent.atomic.AtomicInteger
 import com.rojoma.simplearm.v2._
+import org.slf4j.MDC
 
 private class FunctionHandler(handler: HttpService) extends AbstractHandler {
   def handle(target: String, baseRequest: Request, request: HttpServletRequest, response: HttpServletResponse): Unit = {
     if(isStarted) {
       baseRequest.setHandled(true)
-      using(new ResourceScope("request scope")) { rs =>
-        val request = new ConcreteHttpRequest(new HttpRequest.AugmentedHttpServletRequest(baseRequest), rs)
-        try {
-          request.queryParametersSeq
-          request.requestPath
-        } catch {
-          case _: IllegalArgumentException =>
-            response.sendError(HttpServletResponse.SC_BAD_REQUEST)
-            return
+      try {
+        MDC.clear()
+        using(new ResourceScope("request scope")) { rs =>
+          val request = new ConcreteHttpRequest(new HttpRequest.AugmentedHttpServletRequest(baseRequest), rs)
+          try { // force checking the path and query parameters
+            request.queryParametersSeq
+            request.requestPath
+          } catch {
+            case _: IllegalArgumentException =>
+              response.sendError(HttpServletResponse.SC_BAD_REQUEST)
+              return
+          }
+          handler(request)(response)
         }
-        handler(request)(response)
+      } finally {
+        MDC.clear()
       }
     }
   }
