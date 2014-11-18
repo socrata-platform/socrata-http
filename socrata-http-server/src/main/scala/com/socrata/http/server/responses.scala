@@ -62,6 +62,11 @@ object responses {
     Write(contentType)(_.write(content))
   }
 
+  def Json[T : JsonEncode](content: T, charset: Charset = StandardCharsets.UTF_8, pretty: Boolean = false): HttpResponse =
+    Write("application/json; charset=" + charset.name) { out =>
+      JsonUtil.writeJson(out, content, pretty = pretty, buffer = true)
+    }
+
   def Stream(f: OutputStream => Unit) = r { resp => f(resp.getOutputStream) }
 
   def ContentBytes(content: Array[Byte]) = {
