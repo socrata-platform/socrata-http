@@ -3,8 +3,7 @@ package com.socrata.http.client
 import java.io.{InputStream, Closeable}
 import java.nio.charset.StandardCharsets
 
-import com.rojoma.simplearm.Managed
-import com.rojoma.simplearm.util._
+import com.rojoma.simplearm.v2._
 import org.apache.http.entity.ContentType
 
 trait HttpClient extends Closeable {
@@ -48,6 +47,14 @@ trait HttpClient extends Closeable {
    */
   def execute(req: SimpleHttpRequest): Managed[Response] =
     managed(executeUnmanaged(req))
+
+  /**
+   * Executes the request, returning an object which can be used to query the
+   * response headers and decode the body.  The lifespan of the object is managed
+   * by the provided resourceScope.
+   */
+  def execute(req: SimpleHttpRequest, rs: ResourceScope): Response =
+    rs.open(executeUnmanaged(req))
 }
 
 object HttpClient {

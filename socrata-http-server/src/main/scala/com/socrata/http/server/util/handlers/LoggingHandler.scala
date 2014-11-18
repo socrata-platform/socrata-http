@@ -1,15 +1,15 @@
 package com.socrata.http.server.util.handlers
 
-import com.socrata.http.server.HttpService
-import javax.servlet.http.{HttpServletResponseWrapper, HttpServletResponse, HttpServletRequest}
+import com.socrata.http.server.{HttpRequest, HttpService}
+import javax.servlet.http.{HttpServletResponseWrapper, HttpServletResponse}
 import org.slf4j.{LoggerFactory, Logger}
 
 class LoggingHandler(underlying: HttpService, log: Logger = LoggingHandler.defaultLog) extends HttpService {
-  def apply(req: HttpServletRequest) = { resp =>
+  def apply(req: HttpRequest) = { resp =>
     val start = System.nanoTime()
 
     if(log.isInfoEnabled) {
-      val reqStr = req.getMethod + " " + req.getRequestURI + Option(req.getQueryString).fold("") { q =>
+      val reqStr = req.method + " " + req.requestPathStr + Option(req.queryStr).fold("") { q =>
         "?" + q
       }
       log.info(">>> " + reqStr)

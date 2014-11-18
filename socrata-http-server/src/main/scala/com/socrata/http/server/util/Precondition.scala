@@ -99,8 +99,6 @@ object StrongEntityTag extends (Array[Byte] => StrongEntityTag) {
 }
 
 sealed abstract class Precondition {
-  @deprecated("Use `check' instead", since = "2.0.0")
-  def passes(tag: Option[EntityTag], sideEffectFree: Boolean): Precondition.Result = check(tag, sideEffectFree)
   def check(tag: Option[EntityTag], sideEffectFree: Boolean): Precondition.Result
 
   // Eliminates some tags from consideration.  This exists so services can nest

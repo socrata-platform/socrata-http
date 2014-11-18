@@ -1,5 +1,11 @@
 package com.socrata.http.server
 
+import javax.servlet.http.{HttpServletResponse, HttpServletRequest}
+
+import com.rojoma.simplearm.v2.ResourceScope
+import com.socrata.http.server.HttpRequest.AugmentedHttpServletRequest
+import org.eclipse.jetty.server.handler.ErrorHandler
+
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 
@@ -8,9 +14,10 @@ import sun.misc.SignalHandler
 import java.util.concurrent.Semaphore
 
 import com.socrata.util.logging.LazyStringLogger
-import org.eclipse.jetty.server.{ServerConnector, Handler, Server}
+import org.eclipse.jetty.server.{Request, ServerConnector, Handler, Server}
 import org.eclipse.jetty.servlets.gzip.GzipHandler
 import org.eclipse.jetty.util.component.LifeCycle
+import com.rojoma.simplearm.v2._
 
 /**
  * Base class for Socrata HTTP Servers.  Manages server lifecycle, including graceful
@@ -44,6 +51,18 @@ abstract class AbstractSocrataServerJetty(handler: Handler, options: AbstractSoc
     val wrappedHandler = ((gzipHandler _) :: options.extraHandlers).foldLeft[Handler](handler) { (h, wrapper) => wrapper(h) }
     val countingHandler = new CountingHandler(wrappedHandler, onFatalException)
     server.setHandler(countingHandler)
+
+    options.errorHandler.foreach { errorHandler =>
+      server.addBean(new ErrorHandler {
+        override def handle(target: String, baseRequest: Request, request: HttpServletRequest, response: HttpServletResponse): Unit = {
+          using(new ResourceScope("error handler")) { rs =>
+            val req = new ConcreteHttpRequest(new AugmentedHttpServletRequest(request), rs)
+            baseRequest.setHandled(true)
+            errorHandler(req)(response)
+          }
+        }
+      })
+    }
 
     val mbContainer = new org.eclipse.jetty.jmx.MBeanContainer(java.lang.management.ManagementFactory.getPlatformMBeanServer)
     server.addBean(mbContainer)
@@ -218,32 +237,49 @@ object AbstractSocrataServerJetty {
   abstract class Options {
     type OptT <: Options
 
+    /** Called when a TERM or INT signal is received, after shutting down the listening socket but before
+      * waiting for pending requests to terminate.
+      */
     val onStop: () => Unit
     def withOnStop(callback: () => Unit): OptT
 
+    /** Port to listen on.  "0" means to choose a port at random.
+      */
     val port: Int
     def withPort(p: Int): OptT
 
+    /** A system to inform of (un)readiness. */
     val broker: ServerBroker
     def withBroker(b: ServerBroker): OptT
 
+    /** Amount of time to give the broker before shutting down the listening socket. */
     val deregisterWait: FiniteDuration
     def withDeregisterWait(dw: FiniteDuration): OptT
 
+    /** Maximum amount of time to wait for in-progress requests to stop. */
     val gracefulShutdownTimeout: Duration
     def withGracefulShutdownTimeout(gst: Duration): OptT
 
+    /** A function to handle fatal exceptions */
     val onFatalException: Throwable => Unit
     def withOnFatalException(callback: Throwable => Unit): OptT
 
+    /** GZIP encoding parameters */
     val gzipOptions: Option[Gzip.Options]
     def withGzipOptions(gzo: Option[Gzip.Options]): OptT
 
+    /** Whether or not SIGTERM and SIGINT are watched to shut down */
     val hookSignals: Boolean
     def withHookSignals(enabled: Boolean): OptT
 
+    /** A list of functions that take a base Jetty Handler and return a wrapped Handler.
+      * An example of where this is useful is for instrumenting with MetricsHandler.
+      */
     val extraHandlers: List[Handler => Handler]
     def withExtraHandlers(handlers: List[Handler => Handler]): OptT
+
+    val errorHandler: Option[HttpRequest => HttpResponse]
+    def withErrorHandler(handler: Option[HttpRequest => HttpResponse]): OptT
   }
 
   private case class OptionsImpl(
@@ -253,9 +289,10 @@ object AbstractSocrataServerJetty {
     deregisterWait: FiniteDuration = 5.seconds,
     gracefulShutdownTimeout: Duration = Duration.Inf,
     onFatalException: Throwable => Unit = shutDownJVM,
-    gzipOptions: Option[Gzip.Options] = None,
+    gzipOptions: Option[Gzip.Options] = Some(Gzip.defaultOptions),
     hookSignals: Boolean = true,
-    extraHandlers: List[Handler => Handler] = Nil
+    extraHandlers: List[Handler => Handler] = Nil,
+    errorHandler: Option[HttpRequest => HttpResponse] = None
   ) extends Options {
     type OptT = OptionsImpl
 
@@ -268,6 +305,7 @@ object AbstractSocrataServerJetty {
     override def withGzipOptions(gzo: Option[Gzip.Options]) = copy(gzipOptions = gzo)
     override def withHookSignals(enabled: Boolean) = copy(hookSignals = enabled)
     override def withExtraHandlers(h: List[Handler => Handler]) = copy(extraHandlers = h)
+    override def withErrorHandler(h: Option[HttpRequest => HttpResponse]) = copy(errorHandler = h)
   }
 
   val defaultOptions: Options = OptionsImpl()
@@ -299,8 +337,6 @@ object AbstractSocrataServerJetty {
       override def withBufferSize(bs: Int): Options = copy(bufferSize = bs)
     }
 
-    object Options {
-      def apply(): Options = OptionsImpl()
-    }
+    val defaultOptions: Options = OptionsImpl()
   }
 }

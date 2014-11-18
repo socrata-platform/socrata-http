@@ -1,6 +1,6 @@
 package com.socrata.http.client.`-impl`
 
-import com.rojoma.json.io.{EventTokenIterator, JsonEvent}
+import com.rojoma.json.v3.io.{EventTokenIterator, JsonEvent}
 import java.io.Reader
 
 private[client] class JsonEventIteratorReader(events: Iterator[JsonEvent]) extends Reader {

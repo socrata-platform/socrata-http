@@ -13,8 +13,7 @@ import org.apache.http.impl.conn.PoolingHttpClientConnectionManager
 import org.apache.http.conn.ConnectTimeoutException
 import org.apache.http.client.methods._
 import org.apache.http.entity._
-import com.rojoma.simplearm._
-import com.rojoma.simplearm.util._
+import com.rojoma.simplearm.v2._
 
 import com.socrata.http.client.exceptions._
 import com.socrata.http.common.util.TimeoutManager
@@ -32,19 +31,6 @@ class HttpClientHttpClient(executor: Executor, options: HttpClientHttpClient.Opt
 {
   import HttpClient._
   import options._
-
-  @deprecated("Use HttpClientHttpClient.Options instead", since="2.1.0")
-  def this(livenessChecker: LivenessChecker,
-           executor: Executor,
-           continueTimeout: Option[Int] = None, // no longer used!  Here only for source compatibility
-           userAgent: String = "HttpClientHttpClient",
-           sslContext: SSLContext = SSLContext.getDefault,
-           contentCompression: Boolean = false) =
-    this(executor, HttpClientHttpClient.defaultOptions.
-      withLivenessChecker(livenessChecker).
-      withUserAgent(userAgent).
-      withSSLContext(sslContext).
-      withContentCompression(contentCompression))
 
   private[this] val connectionManager = locally {
     val connManager = new PoolingHttpClientConnectionManager()
@@ -89,45 +75,6 @@ class HttpClientHttpClient(executor: Executor, options: HttpClientHttpClient.Opt
     }
   }
 
-  // Pending the addition of this functionality in simple-arm
-  private class ResourceScope extends Closeable {
-    private var things: List[(Any, Resource[Any])] = Nil
-
-    def open[T](f: => T)(implicit ev: Resource[T]): T = {
-      val thing = f
-      try {
-        things = (thing, ev.asInstanceOf[Resource[Any]]) :: things
-      } catch {
-        case t: Throwable =>
-          try { ev.closeAbnormally(thing, t) }
-          catch { case t2: Throwable => t.addSuppressed(t2) }
-          throw t
-      }
-      thing
-    }
-    def close() {
-      try {
-        while(things.nonEmpty) {
-          val toClose = things.head
-          things = things.tail
-          toClose._2.close(toClose._1)
-        }
-      } catch {
-        case t: Throwable =>
-          while(things.nonEmpty) {
-            val toClose = things.head
-            things = things.tail
-            try {
-              toClose._2.close(toClose._1)
-            } catch {
-              case t2: Throwable => t.addSuppressed(t2)
-            }
-          }
-          throw t
-      }
-    }
-  }
-
   private def send[A](req: HttpUriRequest, timeout: Option[Int], pingTarget: Option[LivenessCheckTarget]): RawResponse with Closeable = {
     val LivenessCheck = 0
     val FullTimeout = 1
@@ -142,19 +89,13 @@ class HttpClientHttpClient(executor: Executor, options: HttpClientHttpClient.Opt
       }
     }
 
-    val scope = new ResourceScope
+    val scope = new ResourceScope("http client")
     try {
-      scope.open {
-        pingTarget match {
-          case Some(target) => livenessChecker.check(target) { abortReason = LivenessCheck; req.abort() }
-          case None => NoopCloseable
-        }
+      pingTarget.foreach { target =>
+        scope.open { livenessChecker.check(target) { abortReason = LivenessCheck; req.abort() } }
       }
-      scope.open {
-        timeout match {
-          case Some(ms) => timeoutManager.addJob(ms) { abortReason = FullTimeout; req.abort() }
-          case None => NoopCloseable
-        }
+      timeout.foreach { ms =>
+        scope.open { timeoutManager.addJob(ms) { abortReason = FullTimeout; req.abort() } }
       }
 
       val response = try {

@@ -3,9 +3,9 @@ package com.socrata.http.client.`-impl`
 import org.scalatest.{FunSuite, MustMatchers}
 import org.scalatest.prop.PropertyChecks
 import java.io.Reader
-import com.rojoma.json.ast.JValue
-import com.rojoma.json.testsupport.ArbitraryJValue
-import com.rojoma.json.io.{CompactJsonWriter, JValueEventIterator}
+import com.rojoma.json.v3.ast.JValue
+import com.rojoma.json.v3.testsupport.ArbitraryJValue
+import com.rojoma.json.v3.io.{CompactJsonWriter, JValueEventIterator}
 import org.scalacheck.Arbitrary
 
 class JsonEventIteratorReaderTest extends FunSuite with MustMatchers with PropertyChecks {

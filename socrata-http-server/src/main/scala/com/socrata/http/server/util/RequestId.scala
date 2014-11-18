@@ -16,7 +16,7 @@ object RequestId {
    * Obtains a RequestId from an HTTP request, generating one if not present.
    * Also inserts the RequestId into MDC for logging if not present.
    * @param req the [[HttpServletRequest]] object
-   * @returns the RequestId from the request or a generated one
+   * @return the RequestId from the request or a generated one
    */
   def getFromRequest(req: HttpServletRequest): RequestId =
     Option(req.getHeader(ReqIdHeader)).getOrElse(generateAndPut())

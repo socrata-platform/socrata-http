@@ -1,9 +1,10 @@
 package com.socrata.http.server.`routing-impl`
 
+import com.socrata.http.server.HttpRequest
+
 import scala.language.experimental.macros
 import scala.reflect.macros.Context
 import com.socrata.http.server.routing.PathTree
-import javax.servlet.http.HttpServletRequest
 import com.socrata.http.server.routing.IsHttpService
 
 object RouteImpl {
@@ -64,9 +65,9 @@ object RouteImpl {
     c.Expr[PathTree[List[Any] => From => To]](tree)
   }
 
-  val redirect = { (req: HttpServletRequest) =>
-    val sb = req.getRequestURL.append('/')
-    if(req.getQueryString != null) sb.append('?').append(req.getQueryString)
+  val redirect = { (req: HttpRequest) =>
+    val sb = req.servletRequest.getRequestURL.append('/')
+    if(req.queryStr != null) sb.append('?').append(req.queryStr)
     com.socrata.http.server.responses.MovedPermanently(new java.net.URL(sb.toString))
   }
 }

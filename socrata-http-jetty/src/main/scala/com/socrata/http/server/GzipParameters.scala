@@ -6,7 +6,7 @@ case class GzipParameters(excludeUserAgent: String => Boolean = Set.empty,
                           bufferSize: Int = 8192,
                           minGzipSize: Int = 256)
 {
-  def toOptions = SocrataServerJetty.Gzip.Options().
+  def toOptions = SocrataServerJetty.Gzip.defaultOptions.
     withBufferSize(bufferSize).
     withMinGzipSize(minGzipSize).
     withExcludedMimeTypes(toSet("excludeMimeTypes", excludeMimeTypes)).

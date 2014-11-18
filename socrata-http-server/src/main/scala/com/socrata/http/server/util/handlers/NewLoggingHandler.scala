@@ -1,7 +1,6 @@
 package com.socrata.http.server.util.handlers
 
-import com.socrata.http.server.HttpService
-import javax.servlet.http.{HttpServletResponseWrapper, HttpServletResponse, HttpServletRequest}
+import com.socrata.http.server.{HttpRequest, HttpService}
 import org.slf4j.{LoggerFactory, Logger, MDC}
 
 /**
@@ -16,17 +15,17 @@ import org.slf4j.{LoggerFactory, Logger, MDC}
 class NewLoggingHandler(underlying: HttpService, options: LoggingOptions) extends HttpService {
   import collection.JavaConverters._
 
-  def apply(req: HttpServletRequest) = { resp =>
+  def apply(req: HttpRequest) = { resp =>
     val log = options.log
     val start = System.nanoTime()
 
     if(log.isInfoEnabled) {
-      val reqStr = req.getMethod + " " + req.getRequestURI + Option(req.getQueryString).fold("") { q =>
+      val reqStr = req.method + " " + req.requestPathStr + Option(req.queryStr).fold("") { q =>
         "?" + q
       }
       log.info(">>> " + reqStr)
       val headers = options.logRequestHeaders.flatMap { hdr =>
-        val values = req.getHeaders(hdr).asScala.toSeq
+        val values = req.headers(hdr).toSeq
         if (values.nonEmpty) MDC.put(hdr, values.head)
         values.map { value => hdr + ": " + value }
       }

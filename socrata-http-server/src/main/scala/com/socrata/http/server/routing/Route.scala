@@ -2,12 +2,10 @@ package com.socrata.http.server.routing
 
 import scala.language.experimental.macros
 
-import javax.servlet.http.HttpServletRequest
-
 import com.socrata.http.server.`routing-impl`.RouteImpl
-import com.socrata.http.server.{HttpService, HttpResponse}
+import com.socrata.http.server.{HttpRequest, HttpService, HttpResponse}
 
-trait IsHttpService[Service] {
+trait IsHttpService[+Service] {
   type S = Service
   def wrap(s: HttpService): Service
 }
@@ -19,7 +17,7 @@ object IsHttpService {
     def wrap(s: HttpService) = s
   }
 
-  type HSR = HttpServletRequest
+  type HSR = HttpRequest
 
   implicit def T1[A] =
     new IsHttpService[((A, HSR)) => HttpResponse] {
@@ -55,4 +53,4 @@ class RouteContext[From, To] {
     macro RouteImpl.dir[From, To]
 }
 
-object SimpleRouteContext extends RouteContext[HttpServletRequest, HttpResponse]
+object SimpleRouteContext extends RouteContext[HttpRequest, HttpResponse]

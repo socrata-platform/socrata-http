@@ -1,7 +1,7 @@
 package com.socrata.http.server.util
 
-import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
-import com.socrata.http.server.{HttpService, HttpResponse}
+import javax.servlet.http.HttpServletResponse
+import com.socrata.http.server.{HttpRequest, HttpService, HttpResponse}
 
 /** An adapter to catch unexpected errors.  This goes right below the
   * servlet-level interface, which is why it is specifically an HttpService.
@@ -9,7 +9,7 @@ import com.socrata.http.server.{HttpService, HttpResponse}
 abstract class ErrorAdapter(service: HttpService) extends HttpService {
   type Tag
 
-  def apply(req: HttpServletRequest): HttpResponse = {
+  def apply(req: HttpRequest): HttpResponse = {
     val response = try {
       service(req)
     } catch {
