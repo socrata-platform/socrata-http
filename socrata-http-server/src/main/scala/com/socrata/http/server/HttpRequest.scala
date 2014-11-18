@@ -33,7 +33,7 @@ object HttpRequest {
   case class ParameterValue(value: Option[String]) extends QueryParameter
   case object NoSuchParameter extends QueryParameter
 
-  final class AugmentedHttpServletRequest(underlying: HttpServletRequest) extends HttpServletRequestWrapper(underlying) {
+  final class AugmentedHttpServletRequest(val underlying: HttpServletRequest) extends HttpServletRequestWrapper(underlying) {
     private[HttpRequest] def requestPathStr = underlying.getRequestURI
 
     private[HttpRequest] lazy val requestPath: List[String] = // TODO: strip off any context and/or servlet path
