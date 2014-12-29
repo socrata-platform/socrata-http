@@ -26,7 +26,7 @@ object Dependencies {
   val rojomaJsonJackson = "com.rojoma" %% "rojoma-json-v3-jackson" % "[1.0.0, 2.0.0)"
 
   val jodaConvert = "org.joda" % "joda-convert" % "1.2"
-  val jodaTime = "joda-time" % "joda-time" % "2.1"
+  val jodaTime = "joda-time" % "joda-time" % "2.6"
 
   val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.11.3"
 
