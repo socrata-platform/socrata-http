@@ -23,12 +23,12 @@ class NewLoggingHandler(underlying: HttpService, options: LoggingOptions) extend
       val reqStr = req.method + " " + req.requestPathStr + Option(req.queryStr).fold("") { q =>
         "?" + q
       }
-      log.info(">>> " + reqStr)
       val headers = options.logRequestHeaders.flatMap { hdr =>
         val values = req.headers(hdr).toSeq
         if (values.nonEmpty) MDC.put(hdr, values.head)
         values.map { value => hdr + ": " + value }
       }
+      log.info(">>> " + reqStr)
       if (!headers.isEmpty) log.info(">>> ReqHeaders:: " + headers.mkString(", "))
     }
 
