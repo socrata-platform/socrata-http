@@ -20,7 +20,7 @@ class NewLoggingHandler(underlying: HttpService, options: LoggingOptions) extend
     val start = System.nanoTime()
 
     if(log.isInfoEnabled) {
-      val reqStr = req.method + " " + req.requestPathStr + Option(req.queryStr).fold("") { q =>
+      val reqStr = req.method + " " + req.requestPathStr + req.queryStr.fold("") { q =>
         "?" + q
       }
       val headers = options.logRequestHeaders.flatMap { hdr =>
