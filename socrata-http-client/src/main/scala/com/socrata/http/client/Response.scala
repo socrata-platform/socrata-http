@@ -170,16 +170,18 @@ object Response {
   private val appGeoJson = new MimeType("application/vnd.geo+json")
   private val textPlain = new MimeType("text/plain")
 
+  type ContentP = Option[MimeType] => Boolean
+
   def matches(pattern: MimeType, candidate: MimeType): Boolean =
     pattern.getPrimaryType == candidate.getPrimaryType && (pattern.getSubType == "*" || pattern.getSubType == candidate.getSubType)
 
-  def acceptJson(mimeType: Option[MimeType]) = mimeType.fold(false)(matches(appJson, _))
-  def acceptGeoJson(mimeType: Option[MimeType]) = mimeType.fold(false) { mt =>
+  val acceptJson: ContentP = mimeType => mimeType.fold(false)(matches(appJson, _))
+
+  val acceptGeoJson: ContentP = mimeType => mimeType.fold(false) { mt =>
     matches(appJson, mt) || matches(appGeoJson, mt)
   }
-  def acceptTextPlain(mimeType: Option[MimeType]) = mimeType.fold(false)(matches(textPlain, _))
 
-  type ContentP = Option[MimeType] => Boolean
+  val acceptTextPlain: ContentP = mimeType => mimeType.fold(false)(matches(textPlain, _))
 
   private class AcknowledgingIterator[T, U](events: Iterator[U] with Acknowledgeable, decoder: Iterator[U] => Iterator[T]) extends Iterator[T] {
     val rawIt = decoder(events)
