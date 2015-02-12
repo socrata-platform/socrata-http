@@ -11,6 +11,8 @@ object Dependencies {
 
   val curatorDiscovery = "org.apache.curator" % "curator-x-discovery" % "2.6.0"
 
+  val highScale = "com.github.stephenc.high-scale-lib" % "high-scale-lib" % "1.1.4"
+
   val jackson = "org.codehaus.jackson" % "jackson-mapper-asl" % "1.9.13"
 
   val javaxServlet = "javax.servlet" % "javax.servlet-api" % "3.1.0"
@@ -37,6 +39,9 @@ object Dependencies {
   val simpleArm = "com.rojoma" %% "simple-arm" % "[1.1.10,2.0.0)"
 
   val slf4jVersion = "1.7.7"
+
+  val streamLib = "com.clearspring.analytics" % "stream"% "2.7.0"
+
   val jclOverSlf4j = "org.slf4j" % "jcl-over-slf4j" % slf4jVersion
   val slf4jApi = "org.slf4j" % "slf4j-api" % slf4jVersion
   val slf4jSimple = "org.slf4j" % "slf4j-simple" % slf4jVersion

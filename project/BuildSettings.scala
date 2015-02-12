@@ -10,7 +10,8 @@ object BuildSettings {
   val cloudbeesReleases = "releases" at cloudbees + "release"
 
   val buildSettings: Seq[Setting[_]] = Defaults.defaultSettings ++ SocrataCloudbeesSbt.socrataBuildSettings ++ Seq(
-    scalaVersion := "2.10.4"
+    scalaVersion := "2.10.4",
+    crossScalaVersions := Seq("2.10.4", "2.11.5")
   )
 
   val projectSettings: Seq[Setting[_]] = buildSettings ++ SocrataCloudbeesSbt.socrataProjectSettings() ++ Seq(

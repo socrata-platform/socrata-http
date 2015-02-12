@@ -10,3 +10,4 @@
 *.swp
 *.swo
 /project/project/target/
+*/target

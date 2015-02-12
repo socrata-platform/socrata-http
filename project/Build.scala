@@ -46,4 +46,10 @@ object Build extends sbt.Build {
     file("socrata-http-client"),
     settings = SocrataHttpClient.settings
   ) dependsOn(socrataHttpCommon)
+
+  lazy val socrataHttpInternal = Project(
+    "socrata-http-internal",
+    file("socrata-http-internal"),
+    settings = SocrataHttpInternal.settings
+  ) dependsOn(socrataHttpCommon, socrataHttpClient, socrataHttpServer)
 }
