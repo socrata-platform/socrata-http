@@ -1,12 +1,13 @@
 package com.socrata.http.internal
 
 import java.util.concurrent.{TimeUnit, Executors}
+import java.io.Closeable
 
 import com.clearspring.analytics.stream.frequency.CountMinSketch
 
 import scala.util.Random
 
-class TimeWindowedCountMinSketch(windows:Int, duration:Long) {
+class TimeWindowedCountMinSketch(windows:Int, duration:Long) extends Closeable {
   val rollingCMS = new RollingCountMinSketch(windows)
 
   private val scheduledThreadPool = Executors.newScheduledThreadPool(1)
@@ -24,7 +25,7 @@ class TimeWindowedCountMinSketch(windows:Int, duration:Long) {
 
 
 
-  def stop() = {
+  def close() = {
     scheduledThreadPool.shutdown
     scheduledThreadPool.awaitTermination(duration,TimeUnit.MILLISECONDS)
   }
