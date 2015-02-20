@@ -5,7 +5,7 @@ import scala.util.Random
 import java.nio.channels.spi.SelectorProvider
 import java.nio.{BufferOverflowException, ByteBuffer}
 import java.nio.channels.ClosedByInterruptException
-import java.net.InetSocketAddress
+import java.net.{InetAddress, InetSocketAddress}
 import java.io.{Closeable, IOException}
 import java.util.concurrent.CountDownLatch
 import java.nio.charset.StandardCharsets
@@ -15,6 +15,13 @@ import com.rojoma.simplearm.v2._
 import com.socrata.http.common.livenesscheck.LivenessCheckInfo
 
 class LivenessCheckResponder(address: InetSocketAddress, rng: Random = new Random) extends Closeable {
+  def this(config: LivenessCheckConfig) {
+    this(config.bindToAdvertisedInterface match {
+      case true => new InetSocketAddress(InetAddress.getByName(config.address), config.port)
+      case false => new InetSocketAddress(config.port)
+    })
+  }
+
   private val sendString = {
     val alphanum = (('a' to 'z') ++ ('A' to 'Z') ++ ('0' to '9')).mkString
     val sb = new StringBuilder

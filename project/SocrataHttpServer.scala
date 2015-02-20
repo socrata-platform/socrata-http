@@ -13,6 +13,8 @@ object SocrataHttpServer {
         scalaReflect(sv),
         simpleArm,
         slf4jApi,
+        socrataThirdpartyUtils,
+        typesafeConfig,
         scalaCheck % "test"
       )
     },
