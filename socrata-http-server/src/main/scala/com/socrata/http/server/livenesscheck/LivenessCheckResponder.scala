@@ -16,10 +16,7 @@ import com.socrata.http.common.livenesscheck.LivenessCheckInfo
 
 class LivenessCheckResponder(address: InetSocketAddress, rng: Random = new Random) extends Closeable {
   def this(config: LivenessCheckConfig) {
-    this(new InetSocketAddress(config.address match {
-        case Some(addr) => InetAddress.getByName(addr)
-        case None => null
-      }, config.port.getOrElse(0)))
+    this(new InetSocketAddress(config.address.map(InetAddress.getByName).orNull, config.port.getOrElse(0)))
   }
 
   private val sendString = {
