@@ -8,7 +8,7 @@ import org.codehaus.jackson.map.annotate.{JsonDeserialize, JsonSerialize}
 /** A class for storing in a curator service advertisement's payload field.
   * All fields of this class must be (de)serializable by Jackson. */
 class AuxiliaryData(var livenessCheckInfo: Option[LivenessCheckInfo], var json: JObject) {
-  def this(livenessCheckInfo: Option[LivenessCheckInfo]) = this(None, JObject.canonicalEmpty)
+  def this(livenessCheckInfo: Option[LivenessCheckInfo]) = this(livenessCheckInfo, JObject.canonicalEmpty)
 
   @deprecated(message = "This constructor is for Jackson's use, not yours", since = "forever")
   def this() = this(None, JObject.canonicalEmpty)
