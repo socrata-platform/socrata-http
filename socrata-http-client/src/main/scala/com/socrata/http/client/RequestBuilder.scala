@@ -174,7 +174,10 @@ final class RequestBuilder private (val host: String,
   def json(contents: Iterator[JsonEvent]) =
     new JsonHttpRequest(this.finish("POST"), contents)
 
-  def jsonValue[T : JsonEncode](contents: JValue) =
+  @deprecated(message = "Use \"jsonBody\" instead", since = "3.1.1")
+  def jsonValue[T : JsonEncode](contents: JValue) = jsonBody(contents)
+
+  def jsonBody[T : JsonEncode](contents: T) =
     new JsonHttpRequest(this.finish("POST"), JValueEventIterator(JsonEncode.toJValue(contents)))
 
   /**
