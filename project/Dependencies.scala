@@ -9,6 +9,8 @@ object Dependencies {
 
   val commonsCodec = "commons-codec" % "commons-codec" % "1.8"
 
+  val commonsIo = "commons-io" % "commons-io" % "2.4"
+
   val curatorDiscovery = "org.apache.curator" % "curator-x-discovery" % "2.6.0"
 
   val jackson = "org.codehaus.jackson" % "jackson-mapper-asl" % "1.9.13"

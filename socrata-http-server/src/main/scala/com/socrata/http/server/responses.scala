@@ -3,7 +3,7 @@ package com.socrata.http.server
 import java.nio.charset.{StandardCharsets, Charset}
 import javax.activation.MimeType
 import javax.servlet.http.HttpServletResponse
-import java.io.{OutputStreamWriter, OutputStream, Writer}
+import java.io.{InputStream, OutputStreamWriter, OutputStream, Writer}
 import java.net.URL
 
 import com.rojoma.json.v3.ast.{JValue, JString}
@@ -11,8 +11,9 @@ import com.rojoma.json.v3.codec.JsonEncode
 import com.rojoma.json.v3.util.JsonUtil
 import com.rojoma.simplearm.v2._
 import com.socrata.http.common.util.CharsetFor
-import implicits._
 import com.socrata.http.server.util.{EntityTagRenderer, EntityTag}
+import implicits._
+import org.apache.commons.io.IOUtils
 import org.joda.time.DateTime
 
 object responses {
@@ -67,7 +68,8 @@ object responses {
       JsonUtil.writeJson(out, content, pretty = pretty, buffer = true)
     }
 
-  def Stream(f: OutputStream => Unit) = r { resp => f(resp.getOutputStream) }
+  def Stream(f: OutputStream => Unit): HttpResponse = r { resp => f(resp.getOutputStream) }
+  def Stream(is: InputStream): HttpResponse = Stream(IOUtils.copy(is, _))
 
   def ContentBytes(content: Array[Byte]) = {
     require(content ne null)
