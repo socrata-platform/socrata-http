@@ -7,6 +7,7 @@ object SocrataHttpServer {
   val settings: Seq[Setting[_]] = BuildSettings.projectSettings ++ Seq(
     libraryDependencies <++= (scalaVersion) { sv =>
       Seq(
+        commonsIo,
         javaxServlet % "provided",
         jodaConvert,
         jodaTime,
