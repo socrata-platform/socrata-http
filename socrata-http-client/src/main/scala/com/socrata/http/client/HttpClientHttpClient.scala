@@ -7,13 +7,14 @@ import java.nio.charset.StandardCharsets
 import java.util.concurrent.Executor
 import javax.net.ssl.{SSLContext, SSLException}
 
+import com.rojoma.simplearm.v2._
+import org.apache.commons.io.input.ReaderInputStream
 import org.apache.http.HttpHost
+import org.apache.http.client.methods._
+import org.apache.http.conn.ConnectTimeoutException
+import org.apache.http.entity._
 import org.apache.http.impl.client.{DefaultConnectionKeepAliveStrategy, HttpClients}
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager
-import org.apache.http.conn.ConnectTimeoutException
-import org.apache.http.client.methods._
-import org.apache.http.entity._
-import com.rojoma.simplearm.v2._
 
 import com.socrata.http.client.exceptions._
 import com.socrata.http.common.util.TimeoutManager
