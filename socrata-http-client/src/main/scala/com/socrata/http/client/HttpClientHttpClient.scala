@@ -9,12 +9,21 @@ import javax.net.ssl.{SSLContext, SSLException}
 
 import com.rojoma.simplearm.v2._
 import org.apache.commons.io.input.ReaderInputStream
-import org.apache.http.HttpHost
+import org.apache.http.auth.AuthScope
+import org.apache.http.impl.auth.BasicScheme
+import org.apache.http.{HttpHost, HttpRequest, HttpException}
+import org.apache.http.protocol.{HttpContext, ExecutionContext}
+import org.apache.http.client.protocol.ClientContext
 import org.apache.http.client.methods._
 import org.apache.http.conn.ConnectTimeoutException
 import org.apache.http.entity._
 import org.apache.http.impl.client.{DefaultConnectionKeepAliveStrategy, HttpClients}
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager
+import org.apache.http.client.CredentialsProvider
+import org.apache.http.impl.client.BasicCredentialsProvider
+import org.apache.http.auth.UsernamePasswordCredentials
+import org.apache.http.auth.AuthState
+import org.apache.http.HttpRequestInterceptor
 
 import com.socrata.http.client.exceptions._
 import com.socrata.http.common.util.TimeoutManager
@@ -50,6 +59,15 @@ class HttpClientHttpClient(executor: Executor, options: HttpClientHttpClient.Opt
         setKeepAliveStrategy(DefaultConnectionKeepAliveStrategy.INSTANCE).
         setSSLSocketFactory(new SSLConnectionSocketFactory(sslContext)).
         setProxy(proxy.orNull)
+
+
+    credentials match {
+      case Some(creds) =>
+        builder.setDefaultCredentialsProvider(creds)
+        builder.addInterceptorFirst(new HttpClientHttpClient.BasicAuthRequestInterceptor(creds))
+      case None => // Explicit negative match as no auth is specified
+    }
+
     if(!contentCompression) builder.disableContentCompression()
     builder.build()
   }
@@ -301,6 +319,23 @@ object HttpClientHttpClient {
     val proxy: Option[HttpHost]
     def withProxy(prx: Option[HttpHost]): Options
     def withProxy(host: String, port: Int): Options = withProxy(Some(new HttpHost(host, port)))
+
+    val authScope: Option[AuthScope]
+    def withAuthScope(as: Option[AuthScope]): Options
+    def withAuthScope(host: String, port: Int): Options = {
+      withAuthScope(Some(new AuthScope(host, port)))
+    }
+
+    // TODO: Do not allow credentials to be added before an AuthScope, as this currently errors
+    def credentials:Option[CredentialsProvider]
+    def withCredentials(creds:Option[CredentialsProvider]):Options
+    def withCredentials(user: String, password: String):Options = {
+      val credentialProvider = new BasicCredentialsProvider();
+      credentialProvider.setCredentials(
+          authScope.getOrElse(AuthScope.ANY),
+          new UsernamePasswordCredentials(user, password))
+     withCredentials(Some(credentialProvider))
+    }
   }
 
   private case class OptionsImpl(
@@ -308,14 +343,39 @@ object HttpClientHttpClient {
     userAgent: String = "HttpClientHttpClient",
     sslContext: SSLContext = SSLContext.getDefault,
     contentCompression: Boolean = false,
-    proxy: Option[HttpHost] = None
+    proxy: Option[HttpHost] = None,
+    authScope: Option[AuthScope] = None,
+    credentials:Option[CredentialsProvider] = None
   ) extends Options {
     def withLivenessChecker(lc: LivenessChecker) = copy(livenessChecker = lc)
     def withUserAgent(ua: String) = copy(userAgent = ua)
     def withSSLContext(sc: SSLContext) = copy(sslContext = sc)
     def withContentCompression(enabled: Boolean) = copy(contentCompression = enabled)
     def withProxy(prx: Option[HttpHost]): Options = copy(proxy = prx)
+    def withAuthScope(as: Option[AuthScope]): Options = copy(authScope = as)
+    def withCredentials(creds: Option[CredentialsProvider]) = copy(credentials=creds)
   }
 
   val defaultOptions: Options = OptionsImpl()
+
+
+  // An intercepter that will make sure all requests use basic auth given the credential provider
+  class BasicAuthRequestInterceptor(credentialProvider: CredentialsProvider) extends HttpRequestInterceptor {
+    def process(request: HttpRequest, context: HttpContext): Unit = {
+      val authState = context.getAttribute(ClientContext.TARGET_AUTH_STATE).asInstanceOf[AuthState]
+
+      if (authState.getAuthScheme() == null) {
+        val targetHost = context.getAttribute(ExecutionContext.HTTP_TARGET_HOST).asInstanceOf[HttpHost]
+        val credentials = credentialProvider.getCredentials(
+          new AuthScope(targetHost.getHostName(), targetHost.getPort()))
+        // Torn between allowing none basic auth if the target host does not much our provided AuthScope in the
+        // provider or throwing in this situation and saying, you said everything is authed and well, this does
+        // not match your authscope so you made a mistake.
+        if (credentials == null)
+          throw new HttpException("No credentials for preemptive authentication");
+        authState.update(new BasicScheme(), credentials)
+      }
+
+     }
+  }
 }
