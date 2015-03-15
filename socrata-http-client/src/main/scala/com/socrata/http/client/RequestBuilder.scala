@@ -19,6 +19,17 @@ import org.apache.commons.codec.binary.Base64
  *  - Updaters which are called `addX` ''augment'' any existing values with a single item.
  *  - Updaters which are caleld `addXs` ''augment'' any existing values with a collection of items.
  */
+
+// Helper for easily adding the correct header for Basic Auth to the request
+// req.addHeader(BasicAuth(uname,pwd))
+object BasicAuth {
+  def apply(username:String, password:String):(String, String) = {
+    val userAndPassBytes= s"""$username:$password""".getBytes
+    val base64Bytes = Base64.encodeBase64String(userAndPassBytes)
+    ("Authorization", s"""Basic $base64Bytes""")
+  }
+}
+
 final class RequestBuilder private (val host: String,
                                     val secure: Boolean,
                                     val port: Int,
@@ -78,11 +89,6 @@ final class RequestBuilder private (val host: String,
 
   def addHeaders(newHeaders: Iterable[(String, String)]) = copy(headers = headers.toVector ++ newHeaders)
 
-  def addBasicAuth(username:String, password:String) = {
-    val userAndPassBytes= s"""$username:$password""".getBytes
-    val base64Bytes = Base64.encodeBase64String(userAndPassBytes)
-    addHeader(("Authorization", s"""Basic $base64Bytes"""))
-  }
   /** Sets the cookies for this request.
     *
     * @note This will wipe out any pre-existing `Cookie` headers.
