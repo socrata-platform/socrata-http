@@ -53,7 +53,6 @@ class HttpClientHttpClient(executor: Executor, options: HttpClientHttpClient.Opt
       HttpClients.custom().
         disableAutomaticRetries().
         disableCookieManagement().
-        disableAuthCaching().
         setConnectionManager(connectionManager).
         setUserAgent(userAgent).
         setKeepAliveStrategy(DefaultConnectionKeepAliveStrategy.INSTANCE).
@@ -65,7 +64,8 @@ class HttpClientHttpClient(executor: Executor, options: HttpClientHttpClient.Opt
       case Some(creds) =>
         builder.setDefaultCredentialsProvider(creds)
         builder.addInterceptorFirst(new HttpClientHttpClient.BasicAuthRequestInterceptor(creds))
-      case None => // Explicit negative match as no auth is specified
+      case None =>  // Explicit negative match as no auth is specified, disable AuthCachin
+        builder.disableAuthCaching()
     }
 
     if(!contentCompression) builder.disableContentCompression()
