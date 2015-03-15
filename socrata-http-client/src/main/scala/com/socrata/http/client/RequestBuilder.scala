@@ -10,6 +10,7 @@ import com.socrata.http.common.livenesscheck.LivenessCheckInfo
 import java.net.{URL, URI, URISyntaxException}
 import java.nio.charset.{CharacterCodingException, StandardCharsets}
 import java.nio.ByteBuffer
+import org.apache.commons.codec.binary.Base64
 
 /**
  * Conventions:
@@ -77,6 +78,11 @@ final class RequestBuilder private (val host: String,
 
   def addHeaders(newHeaders: Iterable[(String, String)]) = copy(headers = headers.toVector ++ newHeaders)
 
+  def addBasicAuth(username:String, password:String) = {
+    val userAndPassBytes= s"""$username:$password""".getBytes
+    val base64Bytes = Base64.encodeBase64String(userAndPassBytes)
+    addHeader(("Authorization", s"""Basic $base64Bytes"""))
+  }
   /** Sets the cookies for this request.
     *
     * @note This will wipe out any pre-existing `Cookie` headers.
