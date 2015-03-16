@@ -22,9 +22,9 @@ import org.apache.commons.codec.binary.Base64
 
 // Helper for easily adding the correct header for Basic Auth to the request
 // req.addHeader(BasicAuth(uname,pwd))
-object BasicAuth {
+object BasicAuth extends ((String, String) => (String, String)) {
   def apply(username:String, password:String):(String, String) = {
-    val userAndPassBytes= s"""$username:$password""".getBytes
+    val userAndPassBytes= s"""$username:$password""".getBytes(StandardCharsets.UTF_8)
     val base64Bytes = Base64.encodeBase64String(userAndPassBytes)
     ("Authorization", s"""Basic $base64Bytes""")
   }
