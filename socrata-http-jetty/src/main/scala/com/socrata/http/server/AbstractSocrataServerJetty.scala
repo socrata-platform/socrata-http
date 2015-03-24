@@ -11,12 +11,14 @@ import scala.concurrent.duration._
 
 import sun.misc.Signal
 import sun.misc.SignalHandler
+import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.Semaphore
 
 import com.socrata.util.logging.LazyStringLogger
 import org.eclipse.jetty.server.{Request, ServerConnector, Handler, Server}
 import org.eclipse.jetty.servlets.gzip.GzipHandler
 import org.eclipse.jetty.util.component.LifeCycle
+import org.eclipse.jetty.util.thread.QueuedThreadPool
 import com.rojoma.simplearm.v2._
 
 /**
@@ -36,7 +38,12 @@ abstract class AbstractSocrataServerJetty(handler: Handler, options: AbstractSoc
    */
   def run() {
     val deregisterWaitMS = deregisterWait.toMillis.min(Long.MaxValue).max(0L).toInt
-    val server = new Server
+    val q = new ArrayBlockingQueue[java.lang.Runnable](options.poolOptions.queueLength)
+    val qtp = new QueuedThreadPool(options.poolOptions.maxThreads,
+                                   options.poolOptions.minThreads,
+                                   options.poolOptions.idleTimeoutMs,
+                                   q)
+    val server = new Server(qtp)
     val connector = new ServerConnector(server)
     connector.setPort(port)
     server.addConnector(connector)
@@ -280,6 +287,9 @@ object AbstractSocrataServerJetty {
 
     val errorHandler: Option[HttpRequest => HttpResponse]
     def withErrorHandler(handler: Option[HttpRequest => HttpResponse]): OptT
+
+    val poolOptions: Pool.Options
+    def withPoolOptions(poolOpts: Pool.Options): OptT
   }
 
   private case class OptionsImpl(
@@ -292,7 +302,8 @@ object AbstractSocrataServerJetty {
     gzipOptions: Option[Gzip.Options] = Some(Gzip.defaultOptions),
     hookSignals: Boolean = true,
     extraHandlers: List[Handler => Handler] = Nil,
-    errorHandler: Option[HttpRequest => HttpResponse] = None
+    errorHandler: Option[HttpRequest => HttpResponse] = None,
+    poolOptions: Pool.Options = Pool.defaultOptions
   ) extends Options {
     type OptT = OptionsImpl
 
@@ -306,6 +317,7 @@ object AbstractSocrataServerJetty {
     override def withHookSignals(enabled: Boolean) = copy(hookSignals = enabled)
     override def withExtraHandlers(h: List[Handler => Handler]) = copy(extraHandlers = h)
     override def withErrorHandler(h: Option[HttpRequest => HttpResponse]) = copy(errorHandler = h)
+    override def withPoolOptions(poolOpt: Pool.Options) = copy(poolOptions = poolOpt)
   }
 
   val defaultOptions: Options = OptionsImpl()
@@ -335,6 +347,47 @@ object AbstractSocrataServerJetty {
       override def withMinGzipSize(s: Int) = copy(minGzipSize = s)
       override def withExcludedMimeTypes(mts: Set[String]) = copy(excludedMimeTypes = mts)
       override def withBufferSize(bs: Int): Options = copy(bufferSize = bs)
+    }
+
+    val defaultOptions: Options = OptionsImpl()
+  }
+
+  /**
+   * Thread pool options.  They ensure that applications have a bounded queue so requests don't
+   * pile up forever and make the application unresponsive.  Part of it is choosing the thread
+   * pool size smartly as well.... scale it correspnding to what the app can handle.
+   * See https://wiki.eclipse.org/Jetty/Howto/High_Load
+   */
+  object Pool {
+    sealed abstract class Options {
+      val minThreads: Int
+      def withMinThreads(numThreads: Int): Options
+
+      val maxThreads: Int
+      def withMaxThreads(numThreads: Int): Options
+
+      val idleTimeoutMs: Int
+      def withIdleTimeoutMs(timeout: Int): Options
+
+      // The size of the bounded queue Jetty will use while waiting for an available thread to process
+      // a connection.  Anything on the queue already has a connection open.  If the queue is full,
+      // then new connections will be rejected.
+      // The queue length should be set to <max-requests-per-sec> * <#-secs-to-recover>.  Set too low and
+      // requests get rejected too soon.
+      val queueLength: Int
+      def withQueueLength(queueLength: Int): Options
+    }
+
+    private case class OptionsImpl(
+      minThreads: Int = 10,
+      maxThreads: Int = 100,
+      idleTimeoutMs: Int = 30000,
+      queueLength: Int = 5000
+    ) extends Options {
+      override def withMinThreads(numThreads: Int) = copy(minThreads = numThreads)
+      override def withMaxThreads(numThreads: Int) = copy(maxThreads = numThreads)
+      override def withIdleTimeoutMs(timeout: Int) = copy(idleTimeoutMs = timeout)
+      override def withQueueLength(ql: Int) = copy(queueLength = ql)
     }
 
     val defaultOptions: Options = OptionsImpl()
