@@ -1,7 +1,5 @@
 package com.socrata.http.server
 
-import javax.servlet.http.{HttpServletResponse, HttpServletRequest}
-
 import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.http.server.HttpRequest.AugmentedHttpServletRequest
 import org.eclipse.jetty.server.handler.ErrorHandler
@@ -13,13 +11,15 @@ import sun.misc.Signal
 import sun.misc.SignalHandler
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.Semaphore
+import javax.servlet.http.{HttpServletResponse, HttpServletRequest}
 
+import com.rojoma.simplearm.v2._
 import com.socrata.util.logging.LazyStringLogger
+import com.typesafe.config.Config
 import org.eclipse.jetty.server.{Request, ServerConnector, Handler, Server}
 import org.eclipse.jetty.servlets.gzip.GzipHandler
 import org.eclipse.jetty.util.component.LifeCycle
 import org.eclipse.jetty.util.thread.QueuedThreadPool
-import com.rojoma.simplearm.v2._
 
 /**
  * Base class for Socrata HTTP Servers.  Manages server lifecycle, including graceful
@@ -404,5 +404,12 @@ object AbstractSocrataServerJetty {
     }
 
     val defaultOptions: Options = OptionsImpl()
+
+    def apply(config: Config): Options = {
+      OptionsImpl(config.getInt("min-threads"),
+                  config.getInt("max-threads"),
+                  config.getMilliseconds("idle-timeout").toInt,
+                  config.getInt("queue-length"))
+    }
   }
 }
