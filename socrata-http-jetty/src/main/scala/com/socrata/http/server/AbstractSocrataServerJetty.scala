@@ -175,6 +175,7 @@ abstract class AbstractSocrataServerJetty(handler: Handler, options: AbstractSoc
       gz.setExcludeMimeTypes(true)
       gz.setBufferSize(opts.bufferSize)
       gz.setMinGzipSize(opts.minGzipSize)
+      gz.setVary(opts.varys.mkString(", "))
       gz
     case None =>
       underlying
@@ -315,6 +316,13 @@ object AbstractSocrataServerJetty {
       val excludedUserAgents: Set[String]
       def withExcludedUserAgents(uas: Set[String]): Options
 
+      /** What items to send in the "Vary" header on compressed responses.
+        * GzipHandler by default excludes compressing requests from IE6 when wired up using Jetty's XML config,
+        * and so by default varies on User-Agent.  That is bad for caching, and we don't default to excluding
+        * IE6, so we default to only varying on Accept-Encoding.  */
+      val varys: Set[String]
+      def withVarys(vs: Set[String]): Options
+
       val excludedMimeTypes: Set[String]
       def withExcludedMimeTypes(mts: Set[String]): Options
 
@@ -327,11 +335,13 @@ object AbstractSocrataServerJetty {
 
     private case class OptionsImpl(
       excludedUserAgents: Set[String] = Set.empty,
+      varys: Set[String] = Set("Accept-Encoding"),
       excludedMimeTypes: Set[String] = Set.empty,
       bufferSize: Int = 8192,
       minGzipSize: Int = 256
     ) extends Options {
       override def withExcludedUserAgents(uas: Set[String]) = copy(excludedUserAgents = uas)
+      override def withVarys(vs: Set[String]) = copy(varys = vs)
       override def withMinGzipSize(s: Int) = copy(minGzipSize = s)
       override def withExcludedMimeTypes(mts: Set[String]) = copy(excludedMimeTypes = mts)
       override def withBufferSize(bs: Int): Options = copy(bufferSize = bs)
