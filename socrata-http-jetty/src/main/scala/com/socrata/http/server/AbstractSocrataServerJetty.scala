@@ -367,6 +367,9 @@ object AbstractSocrataServerJetty {
    * pile up forever and make the application unresponsive.  Part of it is choosing the thread
    * pool size smartly as well.... scale it correspnding to what the app can handle.
    * See https://wiki.eclipse.org/Jetty/Howto/High_Load
+   *
+   * NOTE: To be sure you don't run out of file handles, you need somewhere on the order of
+   * <queueLength> + <maxThreads> * 2   file handles.
    */
   object Pool {
     sealed abstract class Options {

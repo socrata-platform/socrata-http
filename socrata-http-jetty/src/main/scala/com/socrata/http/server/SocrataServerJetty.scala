@@ -7,4 +7,5 @@ object SocrataServerJetty {
   type Options = AbstractSocrataServerJetty.Options
   val defaultOptions = AbstractSocrataServerJetty.defaultOptions
   val Gzip = AbstractSocrataServerJetty.Gzip
+  val Pool = AbstractSocrataServerJetty.Pool
 }
