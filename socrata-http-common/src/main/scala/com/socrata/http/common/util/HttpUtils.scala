@@ -246,7 +246,7 @@ sealed trait HttpUtils
 object HttpUtils {
   private[this] val log = org.slf4j.LoggerFactory.getLogger(classOf[HttpUtils])
 
-  val HttpDateFormat = DateTimeFormat.forPattern("E, dd MMM YYYY HH:mm:ss 'GMT'")
+  val HttpDateFormat = DateTimeFormat.forPattern("E, dd MMM YYYY HH:mm:ss 'GMT'").withZoneUTC()
 
   def isToken(s: String): Boolean = {
     if(s.isEmpty) return false
