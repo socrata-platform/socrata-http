@@ -1,25 +1,22 @@
-import sbt._
-import Keys._
-
-import com.socrata.cloudbeessbt.SocrataCloudbeesSbt
 import com.typesafe.tools.mima.plugin.MimaKeys._
+import sbt.Keys._
+import sbt._
 
 object BuildSettings {
-  val cloudbees = "https://repository-socrata-oss.forge.cloudbees.com/"
-  val cloudbeesSnapshots = "snapshots" at cloudbees + "snapshot"
-  val cloudbeesReleases = "releases" at cloudbees + "release"
-
-  val buildSettings: Seq[Setting[_]] = Defaults.defaultSettings ++ SocrataCloudbeesSbt.socrataBuildSettings ++ Seq(
+  val buildSettings: Seq[Setting[_]] = Defaults.coreDefaultSettings ++ Seq(
+    // TODO: enable scaalstyle build failures
+    com.socrata.sbtplugins.StylePlugin.StyleKeys.styleFailOnError in Compile := false,
+    // TODO: enable code coverage build failures
+    scoverage.ScoverageSbtPlugin.ScoverageKeys.coverageFailOnMinimum := false,
     scalaVersion := "2.10.4"
   )
 
-  val projectSettings: Seq[Setting[_]] = buildSettings ++ SocrataCloudbeesSbt.socrataProjectSettings() ++ Seq(
+  val projectSettings: Seq[Setting[_]] = buildSettings ++ Seq(
     previousArtifact <<= (scalaBinaryVersion, name) { (sv, name) => None /* Some("com.socrata" % (name + "_" + sv) % "2.3.0") */ },
     testOptions in Test ++= Seq(
       Tests.Argument(TestFrameworks.ScalaTest, "-oFD")
     ),
     libraryDependencies ++= Seq(
-      Dependencies.scalaTest % "test"
     ),
     scalacOptions ++= Seq("-language:implicitConversions")
   )

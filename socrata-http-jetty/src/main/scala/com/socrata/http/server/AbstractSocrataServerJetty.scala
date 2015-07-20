@@ -9,8 +9,7 @@ import scala.concurrent.duration._
 
 import sun.misc.Signal
 import sun.misc.SignalHandler
-import java.util.concurrent.ArrayBlockingQueue
-import java.util.concurrent.Semaphore
+import java.util.concurrent.{ArrayBlockingQueue, Semaphore, TimeUnit}
 import javax.servlet.http.{HttpServletResponse, HttpServletRequest}
 
 import com.rojoma.simplearm.v2._
@@ -408,7 +407,7 @@ object AbstractSocrataServerJetty {
     def apply(config: Config): Options = {
       OptionsImpl(config.getInt("min-threads"),
                   config.getInt("max-threads"),
-                  config.getMilliseconds("idle-timeout").toInt,
+                  config.getDuration("idle-timeout", TimeUnit.MILLISECONDS).toInt,
                   config.getInt("queue-length"))
     }
   }

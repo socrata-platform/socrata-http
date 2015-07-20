@@ -16,16 +16,16 @@ sealed trait PathTree[+R] {
 
   def accept(path: List[String]): Option[(List[Any], R)] = {
     class Acceptor {
-      private[this] class State(val builtSoFarRev: List[Any], val nextState: PathTree[R])
+      private[routing] class State(val builtSoFarRev: List[Any], val nextState: PathTree[R])
 
-      private[this] var fixedAccept: (List[Any], R) =
+      private[routing] var fixedAccept: (List[Any], R) =
         acceptFix match {
           case Some(value) =>
             if(path.isEmpty) (Nil, value) else null
           case None =>
             null
         }
-      private[this] var flexAccept: (List[Any], R) =
+      private[routing] var flexAccept: (List[Any], R) =
         acceptFlex match {
           case Some(value) =>
             if(path.nonEmpty) (path.tail :: Nil, value) else null

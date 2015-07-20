@@ -11,7 +11,7 @@ class PathTreeBuilderTest extends FunSuite with MustMatchers {
   // check the behavior instead.
 
   test("No patterns -- deprecated flexmatch marker") {
-    val pt = PathTreeBuilder[String]("/a/b") { "fix" } merge PathTreeBuilder[String]("/a/b/*") { xs:LinearSeq[String] => ("flex" +: xs).mkString(",") }
+    val pt = PathTreeBuilder[String]("/a/b") { "fix" } merge PathTreeBuilder[String]("/a/b/+") { xs:LinearSeq[String] => ("flex" +: xs).mkString(",") }
     pt(List("a", "b")) must equal (Some("fix"))
     pt(List("a", "b", "c")) must equal (Some("flex,c"))
     pt(List("q", "w")) must equal (None)
@@ -45,7 +45,7 @@ class PathTreeBuilderTest extends FunSuite with MustMatchers {
   }
 
   test("initial flexmatch -- deprecated marker") {
-    val pt = PathTreeBuilder[Seq[String]]("/*")(identity[Seq[String]] _)
+    val pt = PathTreeBuilder[Seq[String]]("/+")(identity[Seq[String]] _)
     pt(List("q", "w")) must equal (Some(List("q","w")))
     pt(List("")) must equal (Some(List("")))
     pt(Nil) must equal (None)

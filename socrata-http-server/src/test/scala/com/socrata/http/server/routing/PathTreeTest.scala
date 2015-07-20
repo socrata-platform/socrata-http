@@ -37,7 +37,7 @@ class PathTreeTest extends FunSuite with MustMatchers with PropertyChecks {
     forAll { (prefix: List[String], tail: List[String]) =>
       whenever(tail.nonEmpty) {
         val r = pl(prefix : _*)("literal-flex", wantMore = true)
-        r.accept(prefix ::: tail) must equal(Some(List(tail), "literal-flex"))
+        r.accept(prefix ::: tail) must equal(Some((List(tail), "literal-flex")))
       }
     }
   }
@@ -55,23 +55,23 @@ class PathTreeTest extends FunSuite with MustMatchers with PropertyChecks {
     val r1 = pl("a","b")("r1")
     val r2 = pl("a","b")("r2")
 
-    (r1 merge r2).accept(List("a", "b")) must equal (Some(Nil, "r2"))
-    (r2 merge r1).accept(List("a", "b")) must equal (Some(Nil, "r1"))
+    (r1 merge r2).accept(List("a", "b")) must equal (Some((Nil, "r2")))
+    (r2 merge r1).accept(List("a", "b")) must equal (Some((Nil, "r1")))
   }
 
   test("Two identical fixed flex literal pathtrees will match the one on the right") {
     val r1 = pl("a","b")("r1", wantMore = true)
     val r2 = pl("a","b")("r2", wantMore = true)
 
-    (r1 merge r2).accept(List("a", "b", "c")) must equal (Some(List(List("c")), "r2"))
-    (r2 merge r1).accept(List("a", "b", "c")) must equal (Some(List(List("c")), "r1"))
+    (r1 merge r2).accept(List("a", "b", "c")) must equal (Some((List(List("c")), "r2")))
+    (r2 merge r1).accept(List("a", "b", "c")) must equal (Some((List(List("c")), "r1")))
   }
 
   test("Given two matching literal pathtrees, the longer one wins even when the shorter is on the right") {
     val r1 = pl("a", "b", "c", "d", "e")("r1")
     val r2 = pl("a", "b", "c")("r2", wantMore = true)
-    (r1 merge r2).accept(List("a","b","c","d","e")) must equal (Some(Nil, "r1"))
-    (r2 merge r1).accept(List("a","b","c","d","e")) must equal (Some(Nil, "r1"))
+    (r1 merge r2).accept(List("a","b","c","d","e")) must equal (Some((Nil, "r1")))
+    (r2 merge r1).accept(List("a","b","c","d","e")) must equal (Some((Nil, "r1")))
   }
 
   // Now repeat all the above but with matching trees!  The only two cases are all-literal and all-matching,
@@ -97,7 +97,7 @@ class PathTreeTest extends FunSuite with MustMatchers with PropertyChecks {
     forAll { (prefix: List[String], tail: List[String]) =>
       whenever(tail.nonEmpty) {
         val r = pm(prefix : _*)("literal-flex", wantMore = true)
-        r.accept(prefix ::: tail) must equal(Some(List(tail), "literal-flex"))
+        r.accept(prefix ::: tail) must equal(Some((List(tail), "literal-flex")))
       }
     }
   }
@@ -115,23 +115,23 @@ class PathTreeTest extends FunSuite with MustMatchers with PropertyChecks {
     val r1 = pm("a","b")("r1")
     val r2 = pm("a","b")("r2")
 
-    (r1 merge r2).accept(List("a", "b")) must equal (Some(Nil, "r2"))
-    (r2 merge r1).accept(List("a", "b")) must equal (Some(Nil, "r1"))
+    (r1 merge r2).accept(List("a", "b")) must equal (Some((Nil, "r2")))
+    (r2 merge r1).accept(List("a", "b")) must equal (Some((Nil, "r1")))
   }
 
   test("Two identical fixed flex matching pathtrees will match the one on the right") {
     val r1 = pm("a","b")("r1", wantMore = true)
     val r2 = pm("a","b")("r2", wantMore = true)
 
-    (r1 merge r2).accept(List("a", "b", "c")) must equal (Some(List(List("c")), "r2"))
-    (r2 merge r1).accept(List("a", "b", "c")) must equal (Some(List(List("c")), "r1"))
+    (r1 merge r2).accept(List("a", "b", "c")) must equal (Some((List(List("c")), "r2")))
+    (r2 merge r1).accept(List("a", "b", "c")) must equal (Some((List(List("c")), "r1")))
   }
 
   test("Given two matching matching pathtrees, the longer one wins even when the shorter is on the right") {
     val r1 = pm("a", "b", "c", "d", "e")("r1")
     val r2 = pm("a", "b", "c")("r2", wantMore = true)
-    (r1 merge r2).accept(List("a","b","c","d","e")) must equal (Some(Nil, "r1"))
-    (r2 merge r1).accept(List("a","b","c","d","e")) must equal (Some(Nil, "r1"))
+    (r1 merge r2).accept(List("a","b","c","d","e")) must equal (Some((Nil, "r1")))
+    (r2 merge r1).accept(List("a","b","c","d","e")) must equal (Some((Nil, "r1")))
   }
 
   test("An extracting match returns the found objects in the order in which they were extracted") {
