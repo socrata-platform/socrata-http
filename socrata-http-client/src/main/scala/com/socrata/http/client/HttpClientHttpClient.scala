@@ -35,11 +35,7 @@ class HttpClientHttpClient(executor: Executor, options: HttpClientHttpClient.Opt
   import HttpClient._
   import options._
 
-  private[this] val sslFactory = new SSLConnectionSocketFactory(
-    sslContext,
-    Array("TLSv1", "TLSv1.1", "TLSv1.2"),
-    null,
-    SSLConnectionSocketFactory.BROWSER_COMPATIBLE_HOSTNAME_VERIFIER)
+  private[this] val sslFactory = SSLConnectionSocketFactory.getSystemSocketFactory
 
   private[this] val socketFactoryRegistry: Registry[ConnectionSocketFactory] =
     RegistryBuilder
