@@ -5,13 +5,15 @@ import java.io._
 import java.net._
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.Executor
-import javax.net.ssl.{SSLContext, SSLException}
+import javax.net.ssl._
 
 import com.rojoma.simplearm.v2._
 import org.apache.commons.io.input.ReaderInputStream
 import org.apache.http.HttpHost
 import org.apache.http.client.methods._
+import org.apache.http.config.{RegistryBuilder, Registry}
 import org.apache.http.conn.ConnectTimeoutException
+import org.apache.http.conn.socket.{PlainConnectionSocketFactory, ConnectionSocketFactory}
 import org.apache.http.entity._
 import org.apache.http.impl.client.{DefaultConnectionKeepAliveStrategy, HttpClients}
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager
@@ -24,7 +26,7 @@ import org.apache.http.conn.ssl.SSLConnectionSocketFactory
 import org.apache.http.client.config.RequestConfig
 import org.apache.http.entity.mime.MultipartEntityBuilder
 import scala.util.{Success, Try}
-import org.apache.http.impl.execchain.RequestAbortedException
+
 
 /** Implementation of [[com.socrata.http.client.HttpClient]] based on Apache HttpComponents. */
 class HttpClientHttpClient(executor: Executor, options: HttpClientHttpClient.Options = HttpClientHttpClient.defaultOptions)
@@ -33,12 +35,26 @@ class HttpClientHttpClient(executor: Executor, options: HttpClientHttpClient.Opt
   import HttpClient._
   import options._
 
+  private[this] val sslFactory = new SSLConnectionSocketFactory(
+    sslContext,
+    Array("TLSv1", "TLSv1.1", "TLSv1.2"),
+    null,
+    SSLConnectionSocketFactory.BROWSER_COMPATIBLE_HOSTNAME_VERIFIER)
+
+  private[this] val socketFactoryRegistry: Registry[ConnectionSocketFactory] =
+    RegistryBuilder
+      .create()
+      .register("https", sslFactory.asInstanceOf[ConnectionSocketFactory])
+      .register("http", PlainConnectionSocketFactory.getSocketFactory)
+      .build()
+
   private[this] val connectionManager = locally {
-    val connManager = new PoolingHttpClientConnectionManager()
+    val connManager = new PoolingHttpClientConnectionManager(socketFactoryRegistry)
     connManager.setDefaultMaxPerRoute(Int.MaxValue)
     connManager.setMaxTotal(Int.MaxValue)
     connManager
   }
+
   private[this] val httpclient = locally {
     val builder =
       HttpClients.custom().
@@ -48,7 +64,7 @@ class HttpClientHttpClient(executor: Executor, options: HttpClientHttpClient.Opt
         setConnectionManager(connectionManager).
         setUserAgent(userAgent).
         setKeepAliveStrategy(DefaultConnectionKeepAliveStrategy.INSTANCE).
-        setSSLSocketFactory(new SSLConnectionSocketFactory(sslContext)).
+        setSSLSocketFactory(sslFactory).
         setProxy(proxy.orNull)
     if(!contentCompression) builder.disableContentCompression()
     builder.build()
