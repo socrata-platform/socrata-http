@@ -16,16 +16,16 @@ sealed trait PathTree[+R] {
 
   def accept(path: List[String]): Option[(List[Any], R)] = {
     class Acceptor {
-      private[routing] class State(val builtSoFarRev: List[Any], val nextState: PathTree[R])
+      private[this] class State(val builtSoFarRev: List[Any], val nextState: PathTree[R])
 
-      private[routing] var fixedAccept: (List[Any], R) =
+      private[this] var fixedAccept: (List[Any], R) =
         acceptFix match {
           case Some(value) =>
             if(path.isEmpty) (Nil, value) else null
           case None =>
             null
         }
-      private[routing] var flexAccept: (List[Any], R) =
+      private[this] var flexAccept: (List[Any], R) =
         acceptFlex match {
           case Some(value) =>
             if(path.nonEmpty) (path.tail :: Nil, value) else null
@@ -33,11 +33,11 @@ sealed trait PathTree[+R] {
             null
         }
 
-      def finish(result: (List[Any], R)) =
+      private[this] def finish(result: (List[Any], R)) =
         if(result eq null) None
         else Some((result._1.reverse, result._2))
 
-      def updateAccepts(remainingPath: List[String], states: List[State]) {
+      private[this] def updateAccepts(remainingPath: List[String], states: List[State]) {
         // Ok, this is a LITTLE weird.  Basically, we can be in more than one state at once
         // and we need to keep track of the rightmost flex match as well as the rightmost
         // fixed match that hasn't been superceded by a more-rightward flex match.  Basically,
