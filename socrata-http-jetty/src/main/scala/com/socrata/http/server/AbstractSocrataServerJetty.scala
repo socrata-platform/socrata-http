@@ -46,6 +46,7 @@ abstract class AbstractSocrataServerJetty(handler: Handler, options: AbstractSoc
     val server = new Server(qtp)
     val connector = new ServerConnector(server)
     connector.setPort(port)
+    connector.setIdleTimeout(300000)
     server.addConnector(connector)
 
     // I don't think this is necessary; it registers the server to be
