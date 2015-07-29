@@ -4,10 +4,12 @@ import sbt._
 
 object BuildSettings {
   val buildSettings: Seq[Setting[_]] = Defaults.coreDefaultSettings ++ Seq(
-    // TODO: enable scaalstyle build failures
+    // TODO: enable scalastyle build failures
     com.socrata.sbtplugins.StylePlugin.StyleKeys.styleFailOnError in Compile := false,
     // TODO: enable code coverage build failures
     scoverage.ScoverageSbtPlugin.ScoverageKeys.coverageFailOnMinimum := false,
+    // TODO: enable findbugs build failures
+    com.socrata.sbtplugins.findbugs.JavaFindBugsPlugin.JavaFindBugsKeys.findbugsFailOnError in Compile := false,
     scalaVersion := "2.10.4"
   )
 

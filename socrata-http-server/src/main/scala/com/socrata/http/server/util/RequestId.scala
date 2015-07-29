@@ -9,8 +9,10 @@ import org.slf4j.MDC
 object RequestId {
   type RequestId = String
 
-  val ReqIdHeader = "X-Socrata-RequestId"
+  val reqIdHeader = "X-Socrata-RequestId"
   private val secureRandom = new java.security.SecureRandom
+  private val reqIdBits = 128
+  private val reqIdRadix = 36
 
   /**
    * Obtains a RequestId from an HTTP request, generating one if not present.
@@ -19,17 +21,17 @@ object RequestId {
    * @return the RequestId from the request or a generated one
    */
   def getFromRequest(req: HttpServletRequest): RequestId =
-    Option(req.getHeader(ReqIdHeader)).getOrElse(generateAndPut())
+    Option(req.getHeader(reqIdHeader)).getOrElse(generateAndPut())
 
   /**
    * Generates a random Request ID.
    * NOTE: this is probably good enough but should we consider using UUIDs?
    */
-  def generate(): RequestId = math.BigInt(128, secureRandom).toString(36)
+  def generate(): RequestId = math.BigInt(reqIdBits, secureRandom).toString(reqIdRadix)
 
   private def generateAndPut(): RequestId = {
     val reqId = generate()
-    MDC.put(ReqIdHeader, reqId)
+    MDC.put(reqIdHeader, reqId)
     reqId
   }
 }
