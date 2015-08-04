@@ -8,8 +8,12 @@ import com.socrata.http.server.routing.PathTree
 import com.socrata.http.server.routing.IsHttpService
 
 object RouteImpl {
-  def route[From : c.WeakTypeTag, To : c.WeakTypeTag](c: Context)(pathSpec: c.Expr[String], targetObject: c.Expr[Any]): c.Expr[PathTree[List[Any] => From => To]] = {
-    import c.universe._
+  type PTA[From,To] = PathTree[List[Any] => From => To]
+
+  def route[From : c.WeakTypeTag, To : c.WeakTypeTag](c: Context)
+                                                     (pathSpec: c.Expr[String],
+                                                      targetObject: c.Expr[Any]): c.Expr[PTA[From,To]] = {
+    import c.universe._ // scalastyle:ignore import.grouping
 
     val fromTree = TypeTree(weakTypeOf[From])
     val toTree = TypeTree(weakTypeOf[To])
@@ -18,8 +22,10 @@ object RouteImpl {
     c.Expr[PathTree[List[Any] => From => To]](tree)
   }
 
-  def dir[From : c.WeakTypeTag, To: c.WeakTypeTag](c: Context)(pathSpec: c.Expr[String])(ihs: c.Expr[IsHttpService[From => To]]): c.Expr[PathTree[List[Any] => From => To]] = {
-    import c.universe._
+  def dir[From : c.WeakTypeTag, To: c.WeakTypeTag](c: Context)
+                                                  (pathSpec: c.Expr[String])
+                                                  (ihs: c.Expr[IsHttpService[From => To]]): c.Expr[PTA[From,To]] = {
+    import c.universe._ // scalastyle:ignore import.grouping
 
     val (pathComponents, hasStar) = PathTreeBuilderImpl.parsePathInfo(c)(pathSpec)
 
@@ -67,7 +73,7 @@ object RouteImpl {
 
   val redirect = { (req: HttpRequest) =>
     val sb = req.servletRequest.getRequestURL.append('/')
-    if(req.queryStr != null) sb.append('?').append(req.queryStr)
+    if (req.queryStr.nonEmpty) sb.append('?').append(req.queryStr)
     com.socrata.http.server.responses.MovedPermanently(new java.net.URL(sb.toString))
   }
 }

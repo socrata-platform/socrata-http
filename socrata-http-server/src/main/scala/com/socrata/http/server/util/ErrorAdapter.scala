@@ -10,24 +10,16 @@ abstract class ErrorAdapter(service: HttpService) extends HttpService {
   type Tag
 
   def apply(req: HttpRequest): HttpResponse = {
-    val response = try {
-      service(req)
-    } catch {
-      case e: Exception =>
-        return handleError(_, e)
-    }
-
     (resp: HttpServletResponse) => try {
-      response(resp)
+      service(req)(resp)
     } catch {
-      case e: Exception =>
-        handleError(resp, e)
+      case e: Exception => handleError(resp, e)
     }
   }
 
-  private def handleError(resp: HttpServletResponse, ex: Exception) {
+  private def handleError(resp: HttpServletResponse, ex: Exception): Unit = {
     val tag = errorEncountered(ex)
-    if(!resp.isCommitted) {
+    if (!resp.isCommitted) {
       resp.reset()
       onException(tag)(resp)
     }

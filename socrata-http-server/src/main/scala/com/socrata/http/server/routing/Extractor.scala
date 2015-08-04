@@ -6,13 +6,13 @@ trait Matcher {
 
 object Matcher {
   class StringMatcher(val target: String) extends Matcher {
-    def matches(s: String) = s == target
+    def matches(s: String): Boolean = s == target
   }
 }
 
 trait Extractor[+T] extends Matcher {
   def extract(s: String): Option[T]
-  def matches(s: String) = extract(s).isDefined
+  def matches(s: String): Boolean = extract(s).isDefined
 }
 
 object Extractor {
@@ -26,11 +26,12 @@ object Extractor {
     private val intMax = java.math.BigInteger.valueOf(Int.MaxValue)
     private val intMin = java.math.BigInteger.valueOf(Int.MinValue)
     def extract(s: String): Option[Int] = {
-      val bi =
-        try { new java.math.BigInteger(s) }
-        catch { case e: NumberFormatException => return None }
-      if(bi.compareTo(intMin) >= 0 && bi.compareTo(intMax) <= 0) Some(bi.intValue)
-      else None
+      val biOpt = try { Some(new java.math.BigInteger(s)) }
+        catch { case e: NumberFormatException => None }
+      biOpt match {
+        case None => None
+        case Some(bi) => if (bi.compareTo (intMin) >= 0 && bi.compareTo (intMax) <= 0) Some (bi.intValue) else None
+      }
     }
   }
 
@@ -38,11 +39,12 @@ object Extractor {
     private val longMax = java.math.BigInteger.valueOf(Long.MaxValue)
     private val longMin = java.math.BigInteger.valueOf(Long.MinValue)
     def extract(s: String): Option[Long] = {
-      val bi =
-        try { new java.math.BigInteger(s) }
-        catch { case e: NumberFormatException => return None }
-      if(bi.compareTo(longMin) >= 0 && bi.compareTo(longMax) <= 0) Some(bi.longValue)
-      else None
+      val biOpt = try { Some(new java.math.BigInteger(s)) }
+      catch { case e: NumberFormatException => None }
+      biOpt match {
+        case None => None
+        case Some(bi) => if (bi.compareTo(longMin) >= 0 && bi.compareTo(longMax) <= 0) Some(bi.longValue) else None
+      }
     }
   }
 }

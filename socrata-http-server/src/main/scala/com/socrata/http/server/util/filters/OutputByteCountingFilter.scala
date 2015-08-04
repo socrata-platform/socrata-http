@@ -17,7 +17,7 @@ trait OutputByteCountingFilter extends SimpleFilter[HttpRequest, HttpResponse] {
     }
   }
 
-  def wrote(bytes: Long)
+  def wrote(bytes: Long): Unit
 }
 
 object OutputByteCountingFilter {
@@ -30,10 +30,10 @@ object OutputByteCountingFilter {
 
     private var count = 0L
 
-    def getCountingOutputStream = new ByteCountingOutputStream(super.getOutputStream)
+    def getCountingOutputStream: ByteCountingOutputStream = new ByteCountingOutputStream(super.getOutputStream)
 
     override lazy val getOutputStream: ServletOutputStream = {
-      if(state == WRITER) throw new IllegalStateException("WRITER")
+      if (state == WRITER) throw new IllegalStateException("WRITER")
       state = STREAM
       new ByteCountingOutputStream(getCountingOutputStream)
     }
@@ -44,49 +44,45 @@ object OutputByteCountingFilter {
     // the base multilingual plane, which will also be right most of the time. It'll be in the right ballpark
     // anyway.
     override lazy val getWriter: PrintWriter = {
-      if(state == STREAM) throw new IllegalStateException("STREAM")
+      if (state == STREAM) throw new IllegalStateException("STREAM")
       state = WRITER
 
       new PrintWriter(new UTF8CountingWriter(super.getWriter))
     }
 
     class ByteCountingOutputStream(underlying: ServletOutputStream) extends ServletOutputStream {
-      override def write(b: Int) {
+      override def write(b: Int): Unit = {
         underlying.write(b)
         count += 1
       }
 
-      override def write(bs: Array[Byte]) {
+      override def write(bs: Array[Byte]): Unit = {
         underlying.write(bs)
         count += bs.length
       }
 
-      override def write(bs: Array[Byte], off: Int, len: Int) {
+      override def write(bs: Array[Byte], off: Int, len: Int): Unit = {
         underlying.write(bs, off, len)
         count += len
       }
 
-      override def close() {
-        underlying.close()
-      }
+      override def close(): Unit =underlying.close()
 
-      override def flush() {
-        underlying.flush()
-      }
+      override def flush(): Unit = underlying.flush()
 
-      def isReady(): Boolean = underlying.isReady
+      def isReady: Boolean = underlying.isReady
       def setWriteListener(x: javax.servlet.WriteListener): Unit = underlying.setWriteListener(x)
 
-      def bytesWritten = count
+      def bytesWritten: Long = count
     }
 
     class UTF8CountingWriter(underlying: Writer) extends FilterWriter(underlying) {
-      override def write(c: Int) {
+      override def write(c: Int): Unit = {
         super.write(c)
         count += utf8length(c.toChar)
       }
 
-      override def write(cbuf: Array[Char], off: Int, len: Int) {
+      override def write(cbuf: Array[Char], off: Int, len: Int): Unit = {
         super.write(cbuf, off, len)
 
         var i = 0
@@ -96,23 +92,19 @@ object OutputByteCountingFilter {
         }
       }
 
-      override def write(s: String, off: Int, len: Int) {
+      override def write(s: String, off: Int, len: Int): Unit = {
         super.write(s, off, len)
 
-        var i = 0;
+        var i = 0
         while(i != len) {
           count += utf8length(s.charAt(i + off))
           i += 1
         }
       }
 
-      def utf8length(c: Char): Int = {
-        if(c < 0x80) 1
-        else if(c < 0x8000) 2
-        else 3
-      }
+      def utf8length(c: Char): Int = if (c < 0x80) 1 else if (c < 0x8000) 2 else 3
     }
 
-    def bytesWritten = count
+    def bytesWritten: Long = count
   }
 }

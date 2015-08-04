@@ -1,40 +1,42 @@
 package com.socrata.http.server.routing
 
-import scala.language.experimental.macros
-
 import com.socrata.http.server.`routing-impl`.RouteImpl
 import com.socrata.http.server.{HttpRequest, HttpService, HttpResponse}
+
+import scala.language.experimental.macros
+import scala.language.implicitConversions
 
 trait IsHttpService[+Service] {
   type S = Service
   def wrap(s: HttpService): Service
 }
 
+// scalastyle:off method.name
 object IsHttpService {
   @inline def apply[U](implicit s: IsHttpService[U]): s.type = s
 
   implicit object Identity extends IsHttpService[HttpService] {
-    def wrap(s: HttpService) = s
+    def wrap(s: HttpService): HttpService = s
   }
 
   type HSR = HttpRequest
 
-  implicit def T1[A] =
+  implicit def T1[A]: IsHttpService[((A, HSR)) => HttpResponse] =
     new IsHttpService[((A, HSR)) => HttpResponse] {
       def wrap(s: HttpService): S = { case (_, req) => s(req) }
     }
 
-  implicit def T2[A, B] =
+  implicit def T2[A, B]: IsHttpService[((A, B, HSR)) => HttpResponse] =
     new IsHttpService[((A, B, HSR)) => HttpResponse] {
       def wrap(s: HttpService): S = { case (_, _, req) => s(req) }
     }
 
-  implicit def T3[A, B, C] =
+  implicit def T3[A, B, C]: IsHttpService[((A, B, C, HSR)) => HttpResponse] =
     new IsHttpService[((A, B, C, HSR)) => HttpResponse] {
       def wrap(s: HttpService): S = { case (_, _, _, req) => s(req) }
     }
 
-  implicit def T5[A, B, C, D] =
+  implicit def T5[A, B, C, D]: IsHttpService[((A, B, C, D, HSR)) => HttpResponse] =
     new IsHttpService[((A, B, C, D, HSR)) => HttpResponse] {
       def wrap(s: HttpService): S = { case (_, _, _, _, req) => s(req) }
     }

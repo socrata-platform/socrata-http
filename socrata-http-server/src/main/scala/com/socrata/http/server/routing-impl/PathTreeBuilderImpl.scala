@@ -1,10 +1,12 @@
 package com.socrata.http.server.`routing-impl`
 
+import com.socrata.http.server.routing.PathTree
+
 import scala.language.experimental.macros
 import scala.reflect.macros.Context
 import scala.util.parsing.combinator.RegexParsers
-import com.socrata.http.server.routing.PathTree
 
+// scalastyle:off line.size.limit
 object PathTreeBuilderImpl {
   sealed abstract class ComponentType
   case class PathInstance(className: String) extends ComponentType
@@ -38,16 +40,16 @@ object PathTreeBuilderImpl {
     }
     val dir = slash ~> ((lit ^^ PathLiteral) ||| (classNamePattern ^^ PathInstance) ||| (classNameWithExtPattern ^^ PathTypedInstance.tupled))
     val path1 = rep1(dir) ~ opt(slash ~> flexMarker) ^^ { case a ~ b => (a, b.getOrElse(NoFlexMarker)) }
-    val path0 = slash ~> flexMarker ^^ { case b => (Nil, b) }
+    val path0 = slash ~> flexMarker ^^ { case b: Product with Serializable => (Nil, b) }
     val path = path0 ||| path1
   }
 
   def parsePathInfo(c: Context)(pathSpec: c.Expr[String]) : (Seq[ComponentType], Boolean) = {
-    import c.universe._
+    import c.universe._ // scalastyle:ignore import.grouping
 
     val path = pathSpec.tree match {
       case Literal(Constant(s: String)) => s
-      case other => c.abort(other.pos, "The `pathSpec' argument must be a string literal")
+      case other: Tree => c.abort(other.pos, "The `pathSpec' argument must be a string literal")
     }
 
     val parser = new Parser
@@ -56,14 +58,14 @@ object PathTreeBuilderImpl {
       case fail: parser.NoSuccess => c.abort(pathSpec.tree.pos, "Malformed pathspec: " + fail.msg)
     }
 
-    if(flexMarker == DeprecatedFlexMarker) c.warning(pathSpec.tree.pos, "`*' as a flex marker is deprecated; use `+' instead")
+    if (flexMarker == DeprecatedFlexMarker) c.warning(pathSpec.tree.pos, "`*' as a flex marker is deprecated; use `+' instead")
 
     (pathElements, flexMarker != NoFlexMarker)
   }
 
   // "(/([^/]*)|{ClassName})+"
-  def impl[U: c.WeakTypeTag](c: Context)(pathSpec: c.Expr[String])(targetObject: c.Expr[Any]): c.Expr[PathTree[List[Any] => U]] = {
-    import c.universe._
+  def impl[U: c.WeakTypeTag](c: Context)(pathSpec: c.Expr[String])(targetObject: c.Expr[Any]): c.Expr[PathTree[List[Any] => U]] = { // scalastyle:ignore method.length cyclomatic.complexity
+    import c.universe._ // scalastyle:ignore import.grouping
 
     val (pathElements, hasStar) = parsePathInfo(c)(pathSpec)
 
@@ -162,8 +164,11 @@ object PathTreeBuilderImpl {
           val cls = typeFromName(className)
           val matcher = termFromName(matcherName)
           val extractor =
-            if(required) q"_root_.com.socrata.http.server.`routing-impl`.Extract.typedExtractor[$cls]($matcher)"
-            else q"_root_.com.socrata.http.server.`routing-impl`.Extract.optionallyTypedExtractor[$cls]($matcher)"
+            if (required) {
+              q"_root_.com.socrata.http.server.`routing-impl`.Extract.typedExtractor[$cls]($matcher)"
+            } else {
+              q"_root_.com.socrata.http.server.`routing-impl`.Extract.optionallyTypedExtractor[$cls]($matcher)"
+            }
           q"new _root_.com.socrata.http.server.routing.MatchingPathTree(_root_.scala.collection.immutable.List(($extractor, $lastP)), _root_.scala.None, _root_.scala.None)"
       }
       val newTerm = q"val $pN = $pExpr"

@@ -18,8 +18,11 @@ object EntityTagParser {
     val hp = new HeaderParser(etag)
     parse(hp) match {
       case Some(result) =>
-        if(!mustConsumeEntireInput || hp.nothingLeft) result
-        else throw new HttpHeaderParseException("Did not consume entire input")
+        if (!mustConsumeEntireInput || hp.nothingLeft) {
+          result
+        } else {
+          throw new HttpHeaderParseException("Did not consume entire input")
+        }
       case None =>
         throw new HttpHeaderParseException("Cannot parse ETag")
     }
@@ -28,7 +31,7 @@ object EntityTagParser {
   def parseList(headerParser: HeaderParser): Seq[EntityTag] = {
     val result = Vector.newBuilder[EntityTag]
     @tailrec
-    def loop() {
+    def loop(): Unit = {
       parse(headerParser) match {
         case Some(tag) =>
           result += tag

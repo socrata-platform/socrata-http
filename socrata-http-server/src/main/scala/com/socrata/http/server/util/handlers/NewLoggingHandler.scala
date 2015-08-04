@@ -1,7 +1,11 @@
 package com.socrata.http.server.util.handlers
 
-import com.socrata.http.server.{HttpRequest, HttpService}
-import org.slf4j.{LoggerFactory, Logger, MDC}
+import javax.servlet.http.HttpServletResponse
+
+import com.socrata.http.server.{HttpRequest, HttpResponse, HttpService}
+import org.slf4j.{Logger, LoggerFactory, MDC}
+
+import scala.collection.JavaConverters._
 
 /**
  * NewLoggingHandler - a handler with standard logging for requests, plus extra features
@@ -13,9 +17,7 @@ import org.slf4j.{LoggerFactory, Logger, MDC}
  * very few headers are logged.
  */
 class NewLoggingHandler(underlying: HttpService, options: LoggingOptions) extends HttpService {
-  import collection.JavaConverters._
-
-  def apply(req: HttpRequest) = { resp =>
+  def apply(req: HttpRequest): HttpResponse = { resp =>
     val log = options.log
     val start = System.nanoTime()
 
@@ -29,7 +31,7 @@ class NewLoggingHandler(underlying: HttpService, options: LoggingOptions) extend
         values.map { value => hdr + ": " + value }
       }
       log.info(">>> " + reqStr)
-      if (!headers.isEmpty) log.info(">>> ReqHeaders:: " + headers.mkString(", "))
+      if (headers.nonEmpty) log.info(">>> ReqHeaders:: " + headers.mkString(", "))
     }
 
     val trueResp = new InspectableHttpServletResponse(resp)
@@ -38,14 +40,13 @@ class NewLoggingHandler(underlying: HttpService, options: LoggingOptions) extend
     } finally {
       val end = System.nanoTime()
       val extra =
-        if(trueResp.status >= 400) " ERROR " + trueResp.status
-        else ""
+        if (trueResp.status >= HttpServletResponse.SC_BAD_REQUEST) " ERROR " + trueResp.status else ""
       log.info("<<< {}ms{}", (end - start)/1000000, extra)
 
       val headers = options.logResponseHeaders.flatMap { hdr =>
         trueResp.getHeaders(hdr).asScala.map { value => hdr + ": " + value }.toSeq
       }
-      if (!headers.isEmpty) log.info("<<< RespHeaders:: " + headers.mkString(", "))
+      if (headers.nonEmpty) log.info("<<< RespHeaders:: " + headers.mkString(", "))
       MDC.clear()
     }
   }

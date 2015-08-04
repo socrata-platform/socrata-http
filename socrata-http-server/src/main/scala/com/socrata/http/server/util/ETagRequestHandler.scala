@@ -10,39 +10,29 @@ import java.util.Date
  * Handle and validate conditional requests
  */
 object ETagRequestHandler {
-  val IMS_FORMAT: SimpleDateFormat  = new SimpleDateFormat("EEE, dd MMM yyyy HH: mm: ss zzz")
+  val ImsFormat: SimpleDateFormat  = new SimpleDateFormat("EEE, dd MMM yyyy HH: mm: ss zzz")
 
   def isValidETag(inmHeader: String, objectEtag: String): Boolean = {
-    if (inmHeader != null && objectEtag != null) {
-      if (inmHeader.equals(objectEtag)) {
-        return true
-      }
-      for (tag <- inmHeader.split(",")) {
-        if (tag.replaceAll("\"", "") == objectEtag) {
-          // Valid ETag
-          return true
-        }
-      }
+    if (Option(inmHeader).isDefined && Option(objectEtag).isDefined) {
+      inmHeader.equals(objectEtag) ||
+        inmHeader.split(",").exists(tag => tag.replaceAll("\"", "") == objectEtag) // Tests if valid ETag
+    } else {
+      false
     }
-    false
   }
 
   def isValidIMS(imsHeader: String, objectMtime: Date): Boolean = {
-    if (imsHeader != null && objectMtime != null) {
+    if (Option(imsHeader).isDefined && Option(objectMtime).isDefined) {
       try {
-        val ims: Date = IMS_FORMAT.parse(imsHeader)
-        if (ims.getTime >= objectMtime.getTime) {
-          // Valid If Modified Since header
-          return true
-        }
+        val ims: Date = ImsFormat.parse(imsHeader)
+        ims.getTime >= objectMtime.getTime // Tests if valid If-Modified Since header
       }
       catch {
-        case e: ParseException => {
-          // noop
-        }
+        case e: ParseException => false // noop
       }
+    } else {
+      false
     }
-    false
   }
 
   /**
@@ -72,13 +62,16 @@ object ETagRequestHandler {
    * @param objectMtime the last modification time of some object
    * @return true if this is a valid conditional and the request can be short-circuited
    */
-  def handleConditional(request: HttpServletRequest, response: HttpServletResponse,  objectETag: String, objectMtime: Date): Boolean = {
+  def handleConditional(request: HttpServletRequest,
+                        response: HttpServletResponse,
+                        objectETag: String,
+                        objectMtime: Date): Boolean = {
     if (isValid(request, objectETag, objectMtime))  {
       response.setStatus(HttpServletResponse.SC_NOT_MODIFIED)
       true
     } else {
       if (Option(objectETag).nonEmpty) response.setHeader("ETag", objectETag)
-      if (Option(objectMtime).nonEmpty) response.setHeader("Last-Modified", IMS_FORMAT.format(objectMtime))
+      if (Option(objectMtime).nonEmpty) response.setHeader("Last-Modified", ImsFormat.format(objectMtime))
       false
     }
   }

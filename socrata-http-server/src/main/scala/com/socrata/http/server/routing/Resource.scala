@@ -36,16 +36,16 @@ trait Resource[From, To] extends Service[From, To] {
   def allowedMethods: Set[String] = {
     val sb = Set.newBuilder[String]
     val cls = getClass
-    def check(name: String) {
+    def check(name: String): Unit = {
       // The "Unoverridden" annotation is required because
       // of the way traits-with-implementations work in Scala.
       // In particular, a concrete implementation of this trait
-      // will have a stub impementation with the annotation privded
+      // will have a stub implementation with the annotation provided
       // by scalac, but of course an overridden implementation will
       // no longer have the annotation.
       try {
-        if(cls.getDeclaredMethod(name.toLowerCase(Locale.US)).getAnnotation(classOf[Unoverridden]) eq null)
-          sb += name
+        val a = Option(cls.getDeclaredMethod(name.toLowerCase(Locale.US)).getAnnotation(classOf[Unoverridden]))
+        if (a.isEmpty) sb += name
       } catch {
         case _: NoSuchMethodException => /* nothing */
       }
@@ -65,7 +65,7 @@ trait Resource[From, To] extends Service[From, To] {
       case HttpMethods.PUT => put
       case HttpMethods.DELETE => delete
       case HttpMethods.PATCH => patch
-      case other => unknownMethod(other)
+      case other: String => unknownMethod(other)
     }
     serv(req)
   }
@@ -73,7 +73,7 @@ trait Resource[From, To] extends Service[From, To] {
 
 trait SimpleResource extends Resource[HttpRequest, HttpResponse] {
   def methodNotAllowed: HttpService = SimpleResource.defaultMethodNotAllowed(allowedMethods)
-  def methodOf(req: HttpRequest) = req.method
+  def methodOf(req: HttpRequest): String = req.method
 }
 
 object SimpleResource {

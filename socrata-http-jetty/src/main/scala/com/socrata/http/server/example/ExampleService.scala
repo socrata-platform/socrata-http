@@ -14,7 +14,7 @@ import com.socrata.http.server.{HttpRequest, HttpResponse, HttpService}
  */
 class ExampleRouter(exampleResource: HttpService) {
   val router = Routes(
-    Route("/v1/widgets", exampleResource)
+    route("/v1/widgets", exampleResource)
   )
 
   def route(req: HttpRequest): HttpResponse = {

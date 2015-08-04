@@ -19,7 +19,7 @@ trait InputByteCountingFilter extends SimpleFilter[HttpRequest, HttpResponse] {
     service(wrapper) ~> (_ => read(servletRequestWrapper.bytesRead))
   }
 
-  def read(bytes: Long)
+  def read(bytes: Long): Int
 }
 
 object InputByteCountingFilter {
@@ -35,50 +35,53 @@ object InputByteCountingFilter {
     private def getCountingInputStream = new ByteCountingInputStream(super.getInputStream)
 
     override lazy val getInputStream: ServletInputStream = {
-      if(state == READER) throw new IllegalStateException("READER")
+      if (state == READER) throw new IllegalStateException("READER")
       state = STREAM
       getCountingInputStream
     }
 
     override lazy val getReader: BufferedReader = {
-      if(state == STREAM) throw new IllegalStateException("STREAM")
+      if (state == STREAM) throw new IllegalStateException("STREAM")
       state = READER
-      new BufferedReader(new InputStreamReader(getCountingInputStream, Option(getCharacterEncoding).getOrElse(Codec.ISO8859.name)))
+      new BufferedReader(new InputStreamReader(
+        getCountingInputStream,
+        Option(getCharacterEncoding).getOrElse(Codec.ISO8859.name)
+      ))
     }
 
     class ByteCountingInputStream(underlying: ServletInputStream) extends ServletInputStream {
       override def read(): Int = underlying.read() match {
         case -1 => -1
-        case b => count += 1; b
+        case b: Int => count += 1; b
       }
 
       override def read(buf: Array[Byte]): Int = underlying.read(buf) match {
         case -1 => -1
-        case n => count += n; n
+        case n: Int => count += n; n
       }
 
       override def read(buf: Array[Byte], off: Int, len: Int): Int = underlying.read(buf, off, len) match {
         case -1 => -1
-        case n => count += n; n
+        case n: Int => count += n; n
       }
 
-      override def skip(n: Long) = {
+      override def skip(n: Long): Long = {
         val skipped = underlying.skip(n)
         count += skipped
         skipped
       }
 
-      override def markSupported = underlying.markSupported()
-      override def mark(readLimit: Int) = underlying.mark(readLimit)
-      override def reset() = underlying.reset()
-      override def close() = underlying.close()
-      override def available() = underlying.available()
+      override def markSupported: Boolean = underlying.markSupported()
+      override def mark(readLimit: Int): Unit = underlying.mark(readLimit)
+      override def reset(): Unit = underlying.reset()
+      override def close(): Unit = underlying.close()
+      override def available(): Int = underlying.available()
 
       def isFinished: Boolean = underlying.isFinished
-      def isReady(): Boolean = underlying.isReady
-      def setReadListener(x: javax.servlet.ReadListener) = underlying.setReadListener(x)
+      def isReady: Boolean = underlying.isReady
+      def setReadListener(x: javax.servlet.ReadListener): Unit = underlying.setReadListener(x)
     }
 
-    def bytesRead = count
+    def bytesRead: Long = count
   }
 }

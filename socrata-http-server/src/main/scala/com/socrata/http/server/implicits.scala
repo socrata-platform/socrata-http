@@ -1,21 +1,21 @@
 package com.socrata.http.server
 
 import java.io.InputStreamReader
+import java.net.URLDecoder
 import java.nio.charset.Charset
 import javax.activation.MimeType
-
-import scala.collection.JavaConverters._
 import javax.servlet.http.HttpServletRequest
-import java.net.URLDecoder
 
 import com.socrata.http.server.`-impl`.ChainedHttpResponse
-import com.socrata.http.common.util.{CharsetFor, HttpUtils, ContentNegotiation}
+import com.socrata.http.common.util.{CharsetFor, ContentNegotiation, HttpUtils}
 import com.socrata.http.server.util.PreconditionParser
-
 import org.joda.time.{DateTime, DateTimeZone}
 
-object implicits {
-  implicit def httpResponseToChainedResponse(resp: HttpResponse) = resp match {
+import scala.collection.JavaConverters._
+import scala.language.implicitConversions
+
+object implicits { // scalastyle:ignore object.name
+  implicit def httpResponseToChainedResponse(resp: HttpResponse): ChainedHttpResponse = resp match {
     case c: ChainedHttpResponse => c
     case _ => new ChainedHttpResponse(Vector(resp))
   }

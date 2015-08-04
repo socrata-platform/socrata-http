@@ -1,9 +1,9 @@
 package com.socrata.http.server.util.handlers
 
-import com.socrata.http.server.{HttpRequest, HttpService}
+import com.socrata.http.server.{HttpResponse, HttpRequest, HttpService}
 
 class ThreadRenamingHandler(underlying: HttpService) extends HttpService {
-  def apply(req: HttpRequest) = { resp =>
+  def apply(req: HttpRequest): HttpResponse = { resp =>
     val oldName = Thread.currentThread.getName
     try {
       Thread.currentThread.setName(Thread.currentThread.getId + " / " + req.method + " " + req.requestPathStr)
