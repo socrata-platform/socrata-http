@@ -22,6 +22,6 @@ object SocrataHttpServer {
 
     // macro-paradise macros
     resolvers += Resolver.sonatypeRepo("snapshots"),
-    addCompilerPlugin("org.scalamacros" % "paradise" % "2.0.0" cross CrossVersion.full)
+    addCompilerPlugin("org.scalamacros" % "paradise" % "2.0.1" cross CrossVersion.full)
   )
 }

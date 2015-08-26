@@ -6,7 +6,6 @@ import com.socrata.http.server.`routing-impl`.RouteImpl
 import com.socrata.http.server.{HttpRequest, HttpService, HttpResponse}
 
 trait IsHttpService[+Service] {
-  type S = Service
   def wrap(s: HttpService): Service
 }
 
@@ -21,22 +20,22 @@ object IsHttpService {
 
   implicit def T1[A] =
     new IsHttpService[((A, HSR)) => HttpResponse] {
-      def wrap(s: HttpService): S = { case (_, req) => s(req) }
+      def wrap(s: HttpService) = { case (_, req) => s(req) }
     }
 
   implicit def T2[A, B] =
     new IsHttpService[((A, B, HSR)) => HttpResponse] {
-      def wrap(s: HttpService): S = { case (_, _, req) => s(req) }
+      def wrap(s: HttpService) = { case (_, _, req) => s(req) }
     }
 
   implicit def T3[A, B, C] =
     new IsHttpService[((A, B, C, HSR)) => HttpResponse] {
-      def wrap(s: HttpService): S = { case (_, _, _, req) => s(req) }
+      def wrap(s: HttpService) = { case (_, _, _, req) => s(req) }
     }
 
   implicit def T5[A, B, C, D] =
     new IsHttpService[((A, B, C, D, HSR)) => HttpResponse] {
-      def wrap(s: HttpService): S = { case (_, _, _, _, req) => s(req) }
+      def wrap(s: HttpService) = { case (_, _, _, _, req) => s(req) }
     }
 }
 
