@@ -4,8 +4,9 @@ import Keys._
 import Dependencies._
 
 object SocrataHttpServer {
+
   val settings: Seq[Setting[_]] = BuildSettings.projectSettings ++ Seq(
-    libraryDependencies <++= (scalaVersion) { sv =>
+    libraryDependencies <++=(scalaVersion) { sv =>
       Seq(
         commonsIo,
         javaxServlet % "provided",
@@ -22,6 +23,6 @@ object SocrataHttpServer {
 
     // macro-paradise macros
     resolvers += Resolver.sonatypeRepo("snapshots"),
-    addCompilerPlugin("org.scalamacros" % "paradise" % "2.0.0" cross CrossVersion.full)
+    addCompilerPlugin("org.scalamacros" % "paradise" % "2.0.1" cross CrossVersion.full)
   )
 }
