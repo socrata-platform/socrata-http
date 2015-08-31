@@ -44,7 +44,7 @@ object Dependencies {
   val slf4jSimple = "org.slf4j" % "slf4j-simple" % slf4jVersion
 
   val socrataUtils = "com.socrata" %% "socrata-utils" % "[0.8.0,1.0.0)"
-  val socrataThirdpartyUtils = "com.socrata" %% "socrata-thirdparty-utils" % "4.0.0"
+  val socrataThirdpartyUtils = "com.socrata" %% "socrata-thirdparty-utils" % "4.0.1"
 
   val typesafeConfig = "com.typesafe" % "config" % "1.2.1"
 
