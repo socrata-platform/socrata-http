@@ -14,6 +14,8 @@ import com.socrata.http.common.util.{ContentNegotiation, HttpUtils, CharsetFor}
 import com.socrata.http.server.util.PreconditionParser
 import org.joda.time.DateTime
 
+import com.socrata.http.server.util.RequestId.{RequestId, getFromRequest}
+
 trait HttpRequest {
   def servletRequest: HttpRequest.AugmentedHttpServletRequest
   def resourceScope: ResourceScope
@@ -34,6 +36,8 @@ object HttpRequest {
   case object NoSuchParameter extends QueryParameter
 
   final class AugmentedHttpServletRequest(val underlying: HttpServletRequest) extends HttpServletRequestWrapper(underlying) {
+    private[HttpRequest] val requestId: RequestId = getFromRequest(underlying)
+
     private[HttpRequest] def requestPathStr = underlying.getRequestURI
 
     private[HttpRequest] lazy val requestPath: List[String] = // TODO: strip off any context and/or servlet path
@@ -73,6 +77,8 @@ object HttpRequest {
   final implicit class HttpRequestApi(val `private once 2.10 is no longer a thing`: HttpRequest) extends AnyVal {
     private def self = `private once 2.10 is no longer a thing`
     private def servletRequest = self.servletRequest
+
+    def requestId = servletRequest.requestId
 
     def hostname =
       header("X-Socrata-Host").orElse(header("Host")).getOrElse("").split(':').head
