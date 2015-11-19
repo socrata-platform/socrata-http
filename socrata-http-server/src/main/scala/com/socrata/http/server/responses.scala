@@ -21,7 +21,11 @@ object responses {
 
   def NoOp = r(Function.const(()))
 
-  def Status(code: Int) = r(_.setStatus(code))
+  final class StatusResponse(val statusCode: Int) extends (HttpServletResponse => Unit) {
+    def apply(resp: HttpServletResponse) = resp.setStatus(statusCode)
+  }
+
+  def Status(code: Int) = new StatusResponse(code)
   def Header(name: String, value: String) = r(_.setHeader(name, value))
   def ContentType(mime: String): HttpResponse = _.setContentType(mime)
   def ContentType(mime: MimeType): HttpResponse = ContentType(mime.toString)
