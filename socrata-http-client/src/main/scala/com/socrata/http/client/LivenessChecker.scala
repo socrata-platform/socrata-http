@@ -24,7 +24,7 @@ final class LivenessCheckTarget private[client] (private [client] val host: Inet
 
   override def equals(o: Any) = o match {
     case that: LivenessCheckTarget =>
-      java.util.Arrays.equals(this.address, that.address) && this.port == that.port && java.util.Arrays.equals(this.response, that.response)
+      java.util.Arrays.equals(this.response, that.response)
     case _ => false
   }
 
