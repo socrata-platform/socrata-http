@@ -40,7 +40,7 @@ object NoopLivenessChecker extends LivenessChecker {
   def check(target: LivenessCheckTarget)(onFailure: => Unit): Closeable = NoopCloseable
 }
 
-class InetLivenessChecker(interval: FiniteDuration, range: FiniteDuration, missable: Int, executor: Executor, rng: Random = new Random) extends LivenessChecker with Closeable {
+class InetLivenessChecker(interval: FiniteDuration, range: FiniteDuration, missable: Int, executor: Executor, rng: Random = new Random, bindPort: Int) extends LivenessChecker with Closeable {
   private val intervalMS = interval.toMillis
   private val rangeMS = range.toMillis
 
@@ -53,7 +53,7 @@ class InetLivenessChecker(interval: FiniteDuration, range: FiniteDuration, missa
 
   def start() = synchronized {
     if(done || impl != null) throw new IllegalStateException("Already started")
-    val x = new LivenessCheckerImpl(intervalMS, rangeMS.toInt, missable, executor, rng)
+    val x = new LivenessCheckerImpl(intervalMS, rangeMS.toInt, missable, executor, rng, bindPort)
     try {
       x.start()
     } catch {
@@ -120,7 +120,7 @@ private[client] class OnFailure(val op: () => Unit) extends Runnable with Closea
   }
 }
 
-private[client] final class LivenessCheckerImpl(intervalMS: Long, rangeMS: Int, missable: Int, executor: Executor, rng: Random) extends Thread {
+private[client] final class LivenessCheckerImpl(intervalMS: Long, rangeMS: Int, missable: Int, executor: Executor, rng: Random, bindPort: Int) extends Thread {
   private val log = org.slf4j.LoggerFactory.getLogger(getClass)
 
   setName(getId + " / Liveness Checker")
@@ -200,7 +200,7 @@ private[client] final class LivenessCheckerImpl(intervalMS: Long, rangeMS: Int, 
       throw e
   }
   val selectionKey = try {
-    socket.bind(null)
+    socket.bind(new InetSocketAddress(bindPort))
     socket.configureBlocking(false)
     socket.register(selector, SelectionKey.OP_READ)
   } catch {
