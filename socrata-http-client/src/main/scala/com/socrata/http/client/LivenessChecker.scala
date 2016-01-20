@@ -1,5 +1,7 @@
 package com.socrata.http.client
 
+import java.util
+
 import scala.collection.JavaConverters._
 import java.io.{IOException, Closeable}
 import java.nio.channels.spi.SelectorProvider
@@ -15,7 +17,7 @@ import java.nio.charset.StandardCharsets
 import com.socrata.http.`-impl`.{NoopCloseable, IntrusivePriorityQueueNode, IntrusivePriorityQueue}
 
 // Note: "response" must not be mutated after being passed to this
-final class LivenessCheckTarget private[client] (private [client] val host: InetAddress, private [client] val port: Int, private val response: Array[Byte]) {
+final class LivenessCheckTarget private[client] (private [client] val host: InetAddress, private [client] val port: Int, private [client] val response: Array[Byte]) {
   def this(host: InetAddress, port: Int, response: String) = this(host, port, response.getBytes(StandardCharsets.UTF_8))
 
   private val address = host.getAddress
@@ -24,7 +26,7 @@ final class LivenessCheckTarget private[client] (private [client] val host: Inet
 
   override def equals(o: Any) = o match {
     case that: LivenessCheckTarget =>
-      java.util.Arrays.equals(this.response, that.response)
+      java.util.Arrays.equals(this.address, that.address) && this.port == that.port && java.util.Arrays.equals(this.response, that.response)
     case _ => false
   }
 
@@ -178,8 +180,16 @@ private[client] final class LivenessCheckerImpl(intervalMS: Long, rangeMS: Int, 
     }
   }
 
+  private case class LivenessCheckResponse(val bytes: Array[Byte]) {
+    override val hashCode = MurmurHash3.bytesHash(bytes)
+    override def equals(that: Any) = that match {
+      case that: LivenessCheckResponse => util.Arrays.equals(this.bytes, that.bytes)
+      case _ => false
+    }
+  }
+
   @volatile private var dead: Throwable = null
-  private val pings = new java.util.HashMap[LivenessCheckTarget, Job]
+  private val pings = new java.util.HashMap[LivenessCheckResponse, Job]
   private val pingQueue = new IntrusivePriorityQueue[Job]
 
   private val newJobs = new ConcurrentLinkedQueue[PendingJob]()
@@ -266,7 +276,7 @@ private[client] final class LivenessCheckerImpl(intervalMS: Long, rangeMS: Int, 
     rxPacket.position(rxPacketHeader)
     rxPacket.get(responseBytes)
 
-    val job = pings.get(new LivenessCheckTarget(from.getAddress, from.getPort, responseBytes))
+    val job = pings.get(LivenessCheckResponse(responseBytes))
     if(job != null && !maybeDropJob(job)) {
       if(job.isExpectedPacket(rxPacket)) {
         log.trace("Received expected packet for {}", job)
@@ -283,7 +293,7 @@ private[client] final class LivenessCheckerImpl(intervalMS: Long, rangeMS: Int, 
   private def maybeDropJob(job: Job): Boolean = {
     if(job.onFailures.isEmpty) {
       log.trace("Dropping {} since it has no more failure-listeners", job)
-      pings.remove(job.target)
+      pings.remove(LivenessCheckResponse(job.target.response))
       pingQueue.remove(job)
       true
     } else false
@@ -367,7 +377,7 @@ private[client] final class LivenessCheckerImpl(intervalMS: Long, rangeMS: Int, 
       log.trace("New job!")
       val newJob = new Job(job.target)
       if(job.onFailure.assignToJob(newJob.onFailures)) {
-        pings.put(job.target, newJob)
+        pings.put(LivenessCheckResponse(job.target.response), newJob)
         pingQueue.add(newJob)
       }
     } else {
