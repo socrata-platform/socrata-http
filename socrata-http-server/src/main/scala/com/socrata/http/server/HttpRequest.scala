@@ -14,7 +14,8 @@ import com.socrata.http.common.util.{ContentNegotiation, HttpUtils, CharsetFor}
 import com.socrata.http.server.util.PreconditionParser
 import org.joda.time.DateTime
 
-import com.socrata.http.server.util.RequestId.{RequestId, getFromRequest}
+import routing.Extractor
+import util.RequestId.{RequestId, getFromRequest}
 
 trait HttpRequest {
   def servletRequest: HttpRequest.AugmentedHttpServletRequest
@@ -105,8 +106,11 @@ object HttpRequest {
     def allQueryParameters = servletRequest.allQueryParameters
 
     /** @return The first value associated with the given parameter in the query string. */
-    def queryParameter(parameter: String): Option[String] =
-      servletRequest.queryParameters.get(parameter)
+    def queryParameter(parameterName: String): Option[String] =
+      servletRequest.queryParameters.get(parameterName)
+
+    def queryParameterAs[T](parameterName: String)(implicit extractor: Extractor[T]): Option[T] =
+      queryParameter(parameterName).flatMap(extractor.extract(_))
 
     def method: String = servletRequest.getMethod
 
