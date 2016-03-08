@@ -74,6 +74,9 @@ object HttpRequest {
     }
   }
 
+  implicit def generatedHttpRequestApi(req: HttpRequest): GeneratedHttpRequestApi =
+    new GeneratedHttpRequestApi(req)
+
   // This will allow us to add more (stateless) methods to HttpRequest without breaking binary compatibility
   final implicit class HttpRequestApi(val `private once 2.10 is no longer a thing`: HttpRequest) extends AnyVal {
     private def self = `private once 2.10 is no longer a thing`
