@@ -24,10 +24,10 @@ object SocrataHttpServer {
     // macro-paradise macros
     resolvers += Resolver.sonatypeRepo("snapshots"),
     addCompilerPlugin("org.scalamacros" % "paradise" % "2.0.1" cross CrossVersion.full),
-    sourceGenerators in Compile <+= (sourceManaged in Compile).map(genParses)
+    sourceGenerators in Compile <+= (sourceManaged in Compile, scalaVersion in Compile).map(genParses)
   )
 
-  def genParse(n: Int): String = {
+  def genParse(n: Int, scalaVersion: String): String = {
     val typeVars = (0 until n).map { i => ('A' + i).toChar }
     val resultTypes = typeVars.map { t => s"Option[$t]" }
     val typeParams = typeVars.map { t => s"$t : Extractor" }
@@ -70,7 +70,11 @@ object SocrataHttpServer {
     }
     val condition = resultVars.map(_ + ".isInstanceOf[UnparsableParam]").mkString(" || ")
     sb.append(s"  if($condition) {\n")
-    sb.append(s"    Left(Seq(${resultVars.mkString(", ")}).collect { case x: UnparsableParam => x })\n")
+    if(scalaVersion.startsWith("2.10.")) {
+      sb.append(s"    Left(Seq(${resultVars.mkString(", ")}).flatMap { case x: UnparsableParam => Seq(x); case _ => Nil })\n")
+    } else {
+      sb.append(s"    Left(Seq(${resultVars.mkString(", ")}).collect { case x: UnparsableParam => x })\n")
+    }
     sb.append("  } else {\n")
     val resultExtractions = resultVars.map(_ + ".get")
     sb.append(s"    Right((${resultExtractions.mkString(", ")}))\n")
@@ -80,7 +84,7 @@ object SocrataHttpServer {
     sb.toString
   }
 
-  def genParses(base: File): Seq[File] = {
+  def genParses(base: File, scalaVersion: String): Seq[File] = {
     val targetDir = base / "com" / "socrata" / "http" / "server"
     targetDir.mkdirs()
     val outfile = targetDir / "GeneratedHttpRequestApi.scala"
@@ -93,7 +97,7 @@ import com.socrata.http.server.routing.Extractor
 final class GeneratedHttpRequestApi(val `private once 2.10 is no longer a thing` : HttpRequest) extends AnyVal {
   private def self = `private once 2.10 is no longer a thing`
 """)
-      for(i <- 1 to 22) f.write(genParse(i))
+      for(i <- 1 to 22) f.write(genParse(i, scalaVersion))
       f.write("}\n")
     } finally {
       f.close()
