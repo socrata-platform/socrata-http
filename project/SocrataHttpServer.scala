@@ -37,6 +37,30 @@ object SocrataHttpServer {
     val formals = paramVars.map { p => p + ": String" }
 
     val sb = new StringBuilder
+    sb.append(s"""/**
+ * Parse $n optional query parameters, returning either `Right` containing
+ * a tuple of the parsed values, or `Left` containing a collection of errors
+ * for all the unparsable parameters.  If `Left` is returned, the collection
+ * will be non-empty.
+ *
+""")
+    sb.append(" * @example {{{\n")
+    val exampleTypeUniverse = Seq("String", "Int")
+    val exampleTypes = (1 to n).map { i => exampleTypeUniverse(i % exampleTypeUniverse.length) }
+    val exampleParameters = (1 to n).map("param" + _)
+    val exampleResults = (1 to n).map("result" + _)
+    val exampleParameterStrings = exampleParameters.map("\"" + _ + "\"")
+    sb.append(" * req.parseQueryParametersAs[").append(exampleTypes.mkString(", ")).append("](").append(exampleParameterStrings.mkString(", ")).append(") match {\n")
+    sb.append(" *   case Right((").append(exampleResults.mkString(", ")).append(")) =>\n")
+    (exampleParameters, exampleResults).zipped.foreach { (param, result) =>
+      val string = "\"" + param + " = \""
+      sb.append(" *     println(").append(string).append(" + ").append(result).append(")\n")
+    }
+    sb.append(" *   case Left(errors) =>\n")
+    sb.append(" *     println(\"oops: \" + errors)\n")
+    sb.append(" * }\n")
+    sb.append(" * }}}\n")
+    sb.append(" */\n")
     sb.append("def parseQueryParametersAs[").append(typeParams.mkString(", ")).append("](").append(formals.mkString(",")).append(") : Either[Seq[UnparsableParam], (").append(resultTypes.mkString(", ")).append(")] = {\n")
 
     (resultVars, typeVars, paramVars).zipped.foreach { (out, typ, in) =>
