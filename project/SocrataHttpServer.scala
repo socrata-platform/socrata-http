@@ -28,18 +28,20 @@ object SocrataHttpServer {
   )
 
   def genParse(n: Int): String = {
-    val typeVars = (0 until n).map { i => ('A' + i).toChar }.toIndexedSeq
-    val resultTypes = typeVars.map("Option[" + _ + "]")
-    val typeParams = typeVars.map(_ + " : Extractor")
-    val paramVars = (1 to n).map("r" + _).toIndexedSeq
-    val resultVars = (1 to n).map("res" + _).toIndexedSeq
+    val typeVars = (0 until n).map { i => ('A' + i).toChar }
+    val resultTypes = typeVars.map { t => s"Option[$t]" }
+    val typeParams = typeVars.map { t => s"$t : Extractor" }
+    val paramVars = (1 to n).map { i => s"r$i" }
+    val resultVars = (1 to n).map { i => s"res$i" }
 
-    val formals = paramVars.map { p => p + ": String" }
+    val formals = paramVars.map { p => s"$p: String" }
 
     val sb = new StringBuilder
+    val parameters = if(n == 1) "parameter" else "parameters"
+    val values = if(n == 1) "the parsed value" else "a tuple of the parsed values"
     sb.append(s"""/**
- * Parse $n optional query parameters, returning either `Right` containing
- * a tuple of the parsed values, or `Left` containing a collection of errors
+ * Parse $n optional query $parameters, returning either `Right` containing
+ * $values, or `Left` containing a collection of errors
  * for all the unparsable parameters.  If `Left` is returned, the collection
  * will be non-empty.
  *
@@ -50,27 +52,28 @@ object SocrataHttpServer {
     val exampleParameters = (1 to n).map("param" + _)
     val exampleResults = (1 to n).map("result" + _)
     val exampleParameterStrings = exampleParameters.map("\"" + _ + "\"")
-    sb.append(" * req.parseQueryParametersAs[").append(exampleTypes.mkString(", ")).append("](").append(exampleParameterStrings.mkString(", ")).append(") match {\n")
-    sb.append(" *   case Right((").append(exampleResults.mkString(", ")).append(")) =>\n")
+    sb.append(s" * req.parseQueryParametersAs[${exampleTypes.mkString(", ")}](${exampleParameterStrings.mkString(", ")}) match {\n")
+    sb.append(s" *   case Right((${exampleResults.mkString(", ")})) =>\n")
     (exampleParameters, exampleResults).zipped.foreach { (param, result) =>
-      val string = "\"" + param + " = \""
-      sb.append(" *     println(").append(string).append(" + ").append(result).append(")\n")
+      val q = "\"" // grr scala
+      sb.append(s" *     println($q$param = $q + $result)\n")
     }
     sb.append(" *   case Left(errors) =>\n")
     sb.append(" *     println(\"oops: \" + errors)\n")
     sb.append(" * }\n")
     sb.append(" * }}}\n")
     sb.append(" */\n")
-    sb.append("def parseQueryParametersAs[").append(typeParams.mkString(", ")).append("](").append(formals.mkString(",")).append(") : Either[Seq[UnparsableParam], (").append(resultTypes.mkString(", ")).append(")] = {\n")
+    sb.append(s"def parseQueryParametersAs[${typeParams.mkString(", ")}](${formals.mkString(", ")}) : Either[Seq[UnparsableParam], (${resultTypes.mkString(", ")})] = {\n")
 
     (resultVars, typeVars, paramVars).zipped.foreach { (out, typ, in) =>
       sb.append("  val ").append(out).append(" = self.parseQueryParameterAs[").append(typ).append("](").append(in).append(")\n")
     }
     val condition = resultVars.map(_ + ".isInstanceOf[UnparsableParam]").mkString(" || ")
-    sb.append("  if(").append(condition).append(") {\n")
-    sb.append("    Left(Seq(").append(resultVars.mkString(", ")).append(").collect { case x: UnparsableParam => x })\n")
+    sb.append(s"  if($condition) {\n")
+    sb.append(s"    Left(Seq(${resultVars.mkString(", ")}).collect { case x: UnparsableParam => x })\n")
     sb.append("  } else {\n")
-    sb.append("    Right((").append(resultVars.map(_ + ".get").mkString(", ")).append("))\n")
+    val resultExtractions = resultVars.map(_ + ".get")
+    sb.append(s"    Right((${resultExtractions.mkString(", ")}))\n")
     sb.append("  }\n")
     sb.append("}\n")
 
