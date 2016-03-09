@@ -36,52 +36,52 @@ object SocrataHttpServer {
 
     val formals = paramVars.map { p => s"$p: String" }
 
-    val sb = new StringBuilder
+    val lb = List.newBuilder[String]
     val parameters = if(n == 1) "parameter" else "parameters"
     val values = if(n == 1) "the parsed value" else "a tuple of the parsed values"
-    sb.append(s"""/**
+    lb ++= s"""/**
  * Parse $n optional query $parameters, returning either `Right` containing
  * $values, or `Left` containing a collection of errors
  * for all the unparsable parameters.  If `Left` is returned, the collection
  * will be non-empty.
  *
-""")
-    sb.append(" * @example {{{\n")
+""".split("\n")
+    lb += " * @example {{{"
     val exampleTypeUniverse = Seq("String", "Int")
     val exampleTypes = (1 to n).map { i => exampleTypeUniverse(i % exampleTypeUniverse.length) }
     val exampleParameters = (1 to n).map("param" + _)
     val exampleResults = (1 to n).map("result" + _)
     val exampleParameterStrings = exampleParameters.map("\"" + _ + "\"")
-    sb.append(s" * req.parseQueryParametersAs[${exampleTypes.mkString(", ")}](${exampleParameterStrings.mkString(", ")}) match {\n")
-    sb.append(s" *   case Right((${exampleResults.mkString(", ")})) =>\n")
+    lb += s" * req.parseQueryParametersAs[${exampleTypes.mkString(", ")}](${exampleParameterStrings.mkString(", ")}) match {"
+    lb += s" *   case Right((${exampleResults.mkString(", ")})) =>"
     (exampleParameters, exampleResults).zipped.foreach { (param, result) =>
       val q = "\"" // grr scala
-      sb.append(s" *     println($q$param = $q + $result)\n")
+      lb += s" *     println($q$param = $q + $result)"
     }
-    sb.append(" *   case Left(errors) =>\n")
-    sb.append(" *     println(\"oops: \" + errors)\n")
-    sb.append(" * }\n")
-    sb.append(" * }}}\n")
-    sb.append(" */\n")
-    sb.append(s"def parseQueryParametersAs[${typeParams.mkString(", ")}](${formals.mkString(", ")}) : Either[Seq[UnparsableParam], (${resultTypes.mkString(", ")})] = {\n")
+    lb += " *   case Left(errors) =>"
+    lb += " *     println(\"oops: \" + errors)"
+    lb += " * }"
+    lb += " * }}}"
+    lb += " */"
+    lb += s"def parseQueryParametersAs[${typeParams.mkString(", ")}](${formals.mkString(", ")}) : Either[Seq[UnparsableParam], (${resultTypes.mkString(", ")})] = {"
 
     (resultVars, typeVars, paramVars).zipped.foreach { (out, typ, in) =>
-      sb.append("  val ").append(out).append(" = self.parseQueryParameterAs[").append(typ).append("](").append(in).append(")\n")
+      lb += s"  val $out = self.parseQueryParameterAs[$typ]($in)"
     }
     val condition = resultVars.map(_ + ".isInstanceOf[UnparsableParam]").mkString(" || ")
-    sb.append(s"  if($condition) {\n")
+    lb += s"  if($condition) {"
     if(scalaVersion.startsWith("2.10.")) {
-      sb.append(s"    Left(Seq(${resultVars.mkString(", ")}).flatMap { case x: UnparsableParam => Seq(x); case _ => Nil })\n")
+      lb += s"    Left(Seq(${resultVars.mkString(", ")}).flatMap { case x: UnparsableParam => Seq(x); case _ => Nil })"
     } else {
-      sb.append(s"    Left(Seq(${resultVars.mkString(", ")}).collect { case x: UnparsableParam => x })\n")
+      lb += s"    Left(Seq(${resultVars.mkString(", ")}).collect { case x: UnparsableParam => x })"
     }
-    sb.append("  } else {\n")
+    lb += "  } else {"
     val resultExtractions = resultVars.map(_ + ".get")
-    sb.append(s"    Right((${resultExtractions.mkString(", ")}))\n")
-    sb.append("  }\n")
-    sb.append("}\n")
+    lb += s"    Right((${resultExtractions.mkString(", ")}))"
+    lb += "  }"
+    lb += "}"
 
-    sb.toString
+    lb.result().map("  " + _).mkString("", "\n", "\n")
   }
 
   def genParses(base: File, scalaVersion: String): Seq[File] = {
@@ -96,8 +96,10 @@ import com.socrata.http.server.routing.Extractor
 
 final class GeneratedHttpRequestApi(val `private once 2.10 is no longer a thing` : HttpRequest) extends AnyVal {
   private def self = `private once 2.10 is no longer a thing`
+
 """)
-      for(i <- 1 to 22) f.write(genParse(i, scalaVersion))
+      val functions = (1 to 22).map { i => genParse(i, scalaVersion) }.mkString("\n")
+      f.write(functions)
       f.write("}\n")
     } finally {
       f.close()
