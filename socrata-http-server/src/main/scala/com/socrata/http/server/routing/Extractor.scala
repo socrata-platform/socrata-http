@@ -66,4 +66,18 @@ object Extractor {
       try { Some(BigInt(s)) }
       catch { case _: NumberFormatException => None }
   }
+
+  /** @note This DISALLOWS NaN and Infinity! */
+  implicit object FloatExtractor extends Extractor[Float] {
+    def extract(s: String): Option[Float] =
+      try { Some(java.lang.Float.parseFloat(s)).filterNot { f => f.isNaN || f.isInfinite } }
+      catch { case _: NumberFormatException => None }
+  }
+
+  /** @note This DISALLOWS NaN and Infinity! */
+  implicit object DoubleExtractor extends Extractor[Double] {
+    def extract(s: String): Option[Double] =
+      try { Some(java.lang.Double.parseDouble(s)).filterNot { f => f.isNaN || f.isInfinite } }
+      catch { case _: NumberFormatException => None }
+  }
 }
