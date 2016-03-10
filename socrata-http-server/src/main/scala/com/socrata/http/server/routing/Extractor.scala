@@ -54,4 +54,16 @@ object Extractor {
         case _ => None
       }
   }
+
+  implicit object BigDecimalExtractor extends Extractor[BigDecimal] {
+    def extract(s: String): Option[BigDecimal] =
+      try { Some(BigDecimal(s)) }
+      catch { case _: NumberFormatException => None }
+  }
+
+  implicit object BigIntExtractor extends Extractor[BigInt] {
+    def extract(s: String): Option[BigInt] =
+      try { Some(BigInt(s)) }
+      catch { case _: NumberFormatException => None }
+  }
 }
