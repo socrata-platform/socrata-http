@@ -45,4 +45,13 @@ object Extractor {
       else None
     }
   }
+
+  implicit object BooleanExtractor extends Extractor[Boolean] {
+    def extract(s: String): Option[Boolean] =
+      s.toLowerCase match {
+        case "true" => Some(true)
+        case "false" => Some(false)
+        case _ => None
+      }
+  }
 }
