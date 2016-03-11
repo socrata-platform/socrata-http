@@ -74,6 +74,9 @@ object HttpRequest {
     }
   }
 
+  implicit def generatedHttpRequestApi(req: HttpRequest): GeneratedHttpRequestApi =
+    new GeneratedHttpRequestApi(req)
+
   // This will allow us to add more (stateless) methods to HttpRequest without breaking binary compatibility
   final implicit class HttpRequestApi(val `private once 2.10 is no longer a thing`: HttpRequest) extends AnyVal {
     private def self = `private once 2.10 is no longer a thing`
@@ -109,8 +112,20 @@ object HttpRequest {
     def queryParameter(parameterName: String): Option[String] =
       servletRequest.queryParameters.get(parameterName)
 
+    @deprecated(message = "Use \"parseQueryParameterAs[T]\" instead", since = "3.8.0")
     def queryParameterAs[T](parameterName: String)(implicit extractor: Extractor[T]): Option[T] =
-      queryParameter(parameterName).flatMap(extractor.extract(_))
+      parseQueryParameterAs[T](parameterName).toOption.flatten
+
+    /** @return The first value associated with the given parameter in the query string. */
+    def parseQueryParameterAs[T](parameterName: String)(implicit extractor: Extractor[T]): ParamParseResult[Option[T]] =
+      queryParameter(parameterName) match {
+        case Some(p) =>
+          extractor.extract(p) match {
+            case Some(r) => ParsedParam(Some(r))
+            case None => UnparsableParam(parameterName, p)
+          }
+        case None => ParsedParam(None)
+      }
 
     def method: String = servletRequest.getMethod
 

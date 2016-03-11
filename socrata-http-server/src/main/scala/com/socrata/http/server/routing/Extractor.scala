@@ -45,4 +45,39 @@ object Extractor {
       else None
     }
   }
+
+  implicit object BooleanExtractor extends Extractor[Boolean] {
+    def extract(s: String): Option[Boolean] =
+      s.toLowerCase match {
+        case "true" => Some(true)
+        case "false" => Some(false)
+        case _ => None
+      }
+  }
+
+  implicit object BigDecimalExtractor extends Extractor[BigDecimal] {
+    def extract(s: String): Option[BigDecimal] =
+      try { Some(BigDecimal(s)) }
+      catch { case _: NumberFormatException => None }
+  }
+
+  implicit object BigIntExtractor extends Extractor[BigInt] {
+    def extract(s: String): Option[BigInt] =
+      try { Some(BigInt(s)) }
+      catch { case _: NumberFormatException => None }
+  }
+
+  /** @note This DISALLOWS NaN and Infinity! */
+  implicit object FloatExtractor extends Extractor[Float] {
+    def extract(s: String): Option[Float] =
+      try { Some(java.lang.Float.parseFloat(s)).filterNot { f => f.isNaN || f.isInfinite } }
+      catch { case _: NumberFormatException => None }
+  }
+
+  /** @note This DISALLOWS NaN and Infinity! */
+  implicit object DoubleExtractor extends Extractor[Double] {
+    def extract(s: String): Option[Double] =
+      try { Some(java.lang.Double.parseDouble(s)).filterNot { f => f.isNaN || f.isInfinite } }
+      catch { case _: NumberFormatException => None }
+  }
 }
