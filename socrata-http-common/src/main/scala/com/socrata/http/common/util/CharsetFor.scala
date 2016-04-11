@@ -3,22 +3,30 @@ package com.socrata.http.common.util
 import java.awt.datatransfer.MimeTypeParseException
 import java.nio.charset.{IllegalCharsetNameException, StandardCharsets, Charset}
 import javax.activation.MimeType
+import scala.runtime.ScalaRunTime
 
 import StandardCharsets._
 
 /** Returns a `Charset` for the given mime type. */
 object CharsetFor {
   sealed trait ContentTypeResult
-  sealed trait ContentTypeFailure extends ContentTypeResult
+  sealed trait ContentTypeFailure extends RuntimeException with ContentTypeResult
   case class UnparsableContentType(contentType: String) extends ContentTypeFailure
 
   sealed trait MimeTypeResult extends ContentTypeResult
-  sealed trait MimeTypeFailure extends MimeTypeResult with ContentTypeFailure
+  sealed trait MimeTypeFailure extends ContentTypeFailure with MimeTypeResult
 
-  case class UnknownMimeType(mimeType: MimeType) extends MimeTypeFailure
-  case class IllegalCharsetName(name: String) extends MimeTypeFailure
-  case class UnknownCharset(name: String) extends MimeTypeFailure
   case class Success(charset: Charset) extends MimeTypeResult
+
+  case class UnknownMimeType(mimeType: MimeType) extends MimeTypeFailure {
+    ScalaRunTime._toString(this)
+  }
+  case class IllegalCharsetName(name: String) extends MimeTypeFailure {
+    ScalaRunTime._toString(this)
+  }
+  case class UnknownCharset(name: String) extends MimeTypeFailure {
+    ScalaRunTime._toString(this)
+  }
 
   def mimeType(mt: MimeType): MimeTypeResult = {
     Option(mt.getParameter("charset")) match {
