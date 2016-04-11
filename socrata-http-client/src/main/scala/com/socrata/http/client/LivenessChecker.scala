@@ -65,7 +65,8 @@ class InetLivenessChecker(interval: FiniteDuration,
   require(missable >= 0, "missable")
 
   @volatile private var done = false
-    @volatile private var impl: LivenessCheckerImpl = null
+
+  @volatile private var impl: LivenessCheckerImpl = null
 
   def start() = synchronized {
     if(done || impl != null) throw new IllegalStateException("Already started")
@@ -323,8 +324,11 @@ private[client] final class LivenessCheckerImpl(intervalMS: Long, rangeMS: Int, 
         log.warn("Exception in receive; ignoring", e)
         return
     }
-    if(from == null) return
-      rxPacket.flip()
+    if (from == null) {
+      return
+    }
+
+    rxPacket.flip()
     log.debug("Received a {}-byte datagram from {}", rxPacket.limit, from)
     processRxPacket(from)
     processPackets()
