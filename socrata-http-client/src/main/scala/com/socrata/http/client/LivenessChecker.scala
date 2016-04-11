@@ -42,7 +42,21 @@ object NoopLivenessChecker extends LivenessChecker {
   def check(target: LivenessCheckTarget)(onFailure: => Unit): Closeable = NoopCloseable
 }
 
-class InetLivenessChecker(interval: FiniteDuration, range: FiniteDuration, missable: Int, executor: Executor, rng: Random = new Random, bindPort: Int) extends LivenessChecker with Closeable {
+class InetLivenessChecker(interval: FiniteDuration,
+                          range: FiniteDuration,
+                          missable: Int,
+                          executor: Executor,
+                          rng: Random,
+                          bindPort: Int) extends LivenessChecker with Closeable {
+  // These are for backwards compatibility.
+  // TODO: Fold these in as default arguments for 4.0.0.
+  def this(interval: FiniteDuration, range: FiniteDuration, missable: Int, executor: Executor, rng: Random) =
+    this(interval, range, missable, executor, rng, 0)
+  def this(interval: FiniteDuration, range: FiniteDuration, missable: Int, executor: Executor, bindPort: Int) =
+    this(interval, range, missable, executor, new Random, bindPort)
+  def this(interval: FiniteDuration, range: FiniteDuration, missable: Int, executor: Executor) =
+    this(interval, range, missable, executor, new Random, 0)
+
   private val intervalMS = interval.toMillis
   private val rangeMS = range.toMillis
 
@@ -51,7 +65,7 @@ class InetLivenessChecker(interval: FiniteDuration, range: FiniteDuration, missa
   require(missable >= 0, "missable")
 
   @volatile private var done = false
-  @volatile private var impl: LivenessCheckerImpl = null
+    @volatile private var impl: LivenessCheckerImpl = null
 
   def start() = synchronized {
     if(done || impl != null) throw new IllegalStateException("Already started")
@@ -310,7 +324,7 @@ private[client] final class LivenessCheckerImpl(intervalMS: Long, rangeMS: Int, 
         return
     }
     if(from == null) return
-    rxPacket.flip()
+      rxPacket.flip()
     log.debug("Received a {}-byte datagram from {}", rxPacket.limit, from)
     processRxPacket(from)
     processPackets()
@@ -401,7 +415,3 @@ private[client] final class LivenessCheckerImpl(intervalMS: Long, rangeMS: Int, 
     closeSocketApparatus()
   }
 }
-
-
-
-
