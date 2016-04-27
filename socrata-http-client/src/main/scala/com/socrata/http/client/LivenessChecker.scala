@@ -354,7 +354,7 @@ private[client] final class LivenessCheckerImpl(intervalMS: Long, rangeMS: Int, 
     job.missed += 1
     if(job.missed > missable) {
       log.trace("More than {} packets missed in a row by {}", missable, job)
-      pings.remove(job.target)
+      pings.remove(LivenessCheckResponse(job.target.response))
       pingQueue.remove(job)
       for(f <- job.onFailures.keys.asScala) {
         if(!f.cancelled) executor.execute(f)
@@ -390,7 +390,7 @@ private[client] final class LivenessCheckerImpl(intervalMS: Long, rangeMS: Int, 
 
   private def startJob(job: PendingJob) {
     log.trace("Starting a job for {}", job.target)
-    val existingJob = pings.get(job.target)
+    val existingJob = pings.get(LivenessCheckResponse(job.target.response))
     if(existingJob == null) {
       log.trace("New job!")
       val newJob = new Job(job.target)
