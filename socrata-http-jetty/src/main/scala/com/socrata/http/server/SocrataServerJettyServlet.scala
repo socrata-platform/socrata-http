@@ -74,6 +74,7 @@ object SocrataServerJettyServlet {
     override def withExtraHandlers(h: List[Handler => Handler]) = copy(extraHandlers = h)
     override def withErrorHandler(h: Option[HttpRequest => HttpResponse]) = copy(errorHandler = h)
     override def withPoolOptions(pOpt: Pool.Options) = copy(poolOptions = pOpt)
+    override def withIdleTimeout(it: Int) = this
   }
 
   val defaultOptions: Options = OptionsImpl()

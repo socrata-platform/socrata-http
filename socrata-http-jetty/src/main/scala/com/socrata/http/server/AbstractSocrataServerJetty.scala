@@ -292,6 +292,10 @@ object AbstractSocrataServerJetty {
 
     val poolOptions: Pool.Options
     def withPoolOptions(poolOpts: Pool.Options): OptT
+
+    @deprecated("Use pool options", "5/12/2016")
+    def withIdleTimeout(it: Int): OptT
+
   }
 
   private case class OptionsImpl(
@@ -320,6 +324,7 @@ object AbstractSocrataServerJetty {
     override def withExtraHandlers(h: List[Handler => Handler]) = copy(extraHandlers = h)
     override def withErrorHandler(h: Option[HttpRequest => HttpResponse]) = copy(errorHandler = h)
     override def withPoolOptions(poolOpt: Pool.Options) = copy(poolOptions = poolOpt)
+    override def withIdleTimeout(it: Int) = this
   }
 
   val defaultOptions: Options = OptionsImpl()
