@@ -305,8 +305,7 @@ object AbstractSocrataServerJetty {
     hookSignals: Boolean = true,
     extraHandlers: List[Handler => Handler] = Nil,
     errorHandler: Option[HttpRequest => HttpResponse] = None,
-    poolOptions: Pool.Options = Pool.defaultOptions,
-    idleTimeoutMs: Int = 30000
+    poolOptions: Pool.Options = Pool.defaultOptions
   ) extends Options {
     type OptT = OptionsImpl
 

@@ -56,8 +56,7 @@ object SocrataServerJettyServlet {
     hookSignals: Boolean = AbstractSocrataServerJetty.defaultOptions.hookSignals,
     extraHandlers: List[Handler => Handler] = AbstractSocrataServerJetty.defaultOptions.extraHandlers,
     errorHandler: Option[HttpRequest => HttpResponse] = None,
-    poolOptions: Pool.Options = AbstractSocrataServerJetty.defaultOptions.poolOptions,
-    idleTimeoutMs: Int = 30000
+    poolOptions: Pool.Options = AbstractSocrataServerJetty.defaultOptions.poolOptions
   ) extends Options {
     type OptT = OptionsImpl
 
