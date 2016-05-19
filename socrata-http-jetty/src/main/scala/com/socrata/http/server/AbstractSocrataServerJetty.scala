@@ -46,7 +46,7 @@ abstract class AbstractSocrataServerJetty(handler: Handler, options: AbstractSoc
     val server = new Server(qtp)
     val connector = new ServerConnector(server)
     connector.setPort(port)
-    connector.setIdleTimeout(idleTimeout)
+    connector.setIdleTimeout(options.poolOptions.idleTimeoutMs)
     server.addConnector(connector)
 
     // I don't think this is necessary; it registers the server to be
@@ -293,9 +293,9 @@ object AbstractSocrataServerJetty {
     val poolOptions: Pool.Options
     def withPoolOptions(poolOpts: Pool.Options): OptT
 
-    /** IdleTimeout is how long the connection can sit before it is killed, defaults to 30 seconds */
-    val idleTimeout: Int
+    @deprecated("Use pool options", "5/12/2016")
     def withIdleTimeout(it: Int): OptT
+
   }
 
   private case class OptionsImpl(
@@ -309,8 +309,7 @@ object AbstractSocrataServerJetty {
     hookSignals: Boolean = true,
     extraHandlers: List[Handler => Handler] = Nil,
     errorHandler: Option[HttpRequest => HttpResponse] = None,
-    poolOptions: Pool.Options = Pool.defaultOptions,
-    idleTimeout: Int = 30000
+    poolOptions: Pool.Options = Pool.defaultOptions
   ) extends Options {
     type OptT = OptionsImpl
 
@@ -325,7 +324,7 @@ object AbstractSocrataServerJetty {
     override def withExtraHandlers(h: List[Handler => Handler]) = copy(extraHandlers = h)
     override def withErrorHandler(h: Option[HttpRequest => HttpResponse]) = copy(errorHandler = h)
     override def withPoolOptions(poolOpt: Pool.Options) = copy(poolOptions = poolOpt)
-    override def withIdleTimeout(it: Int) = copy(idleTimeout = it)
+    override def withIdleTimeout(it: Int) = this
   }
 
   val defaultOptions: Options = OptionsImpl()
