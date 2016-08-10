@@ -29,7 +29,7 @@ class NewLoggingHandler(underlying: HttpService, options: LoggingOptions) extend
         values.map { value => hdr + ": " + value }
       }
       log.info(">>> " + reqStr)
-      if (!headers.isEmpty) log.info(">>> ReqHeaders:: " + headers.mkString(", "))
+      if (log.isDebugEnabled && headers.nonEmpty) log.debug(">>> ReqHeaders:: " + headers.mkString(", "))
     }
 
     val trueResp = new InspectableHttpServletResponse(resp)
@@ -45,7 +45,7 @@ class NewLoggingHandler(underlying: HttpService, options: LoggingOptions) extend
       val headers = options.logResponseHeaders.flatMap { hdr =>
         trueResp.getHeaders(hdr).asScala.map { value => hdr + ": " + value }.toSeq
       }
-      if (!headers.isEmpty) log.info("<<< RespHeaders:: " + headers.mkString(", "))
+      if (log.isDebugEnabled && headers.nonEmpty) log.debug("<<< RespHeaders:: " + headers.mkString(", "))
       MDC.clear()
     }
   }
