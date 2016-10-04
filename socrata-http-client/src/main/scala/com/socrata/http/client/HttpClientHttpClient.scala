@@ -63,6 +63,7 @@ class HttpClientHttpClient(executor: Executor, options: HttpClientHttpClient.Opt
         setSSLSocketFactory(sslFactory).
         setProxy(proxy.orNull)
     if(!contentCompression) builder.disableContentCompression()
+    if(!followRedirects) builder.disableRedirectHandling()
     builder.build()
   }
 
@@ -313,6 +314,9 @@ object HttpClientHttpClient {
     val proxy: Option[HttpHost]
     def withProxy(prx: Option[HttpHost]): Options
     def withProxy(host: String, port: Int): Options = withProxy(Some(new HttpHost(host, port)))
+
+    val followRedirects: Boolean
+    def withFollowRedirects(fr: Boolean): Options
   }
 
   private case class OptionsImpl(
@@ -320,13 +324,15 @@ object HttpClientHttpClient {
     userAgent: String = "HttpClientHttpClient",
     sslContext: SSLContext = SSLContext.getDefault,
     contentCompression: Boolean = false,
-    proxy: Option[HttpHost] = None
+    proxy: Option[HttpHost] = None,
+    followRedirects: Boolean = true
   ) extends Options {
     def withLivenessChecker(lc: LivenessChecker) = copy(livenessChecker = lc)
     def withUserAgent(ua: String) = copy(userAgent = ua)
     def withSSLContext(sc: SSLContext) = copy(sslContext = sc)
     def withContentCompression(enabled: Boolean) = copy(contentCompression = enabled)
     def withProxy(prx: Option[HttpHost]): Options = copy(proxy = prx)
+    def withFollowRedirects(fr: Boolean): Options = copy(followRedirects = fr)
   }
 
   val defaultOptions: Options = OptionsImpl()

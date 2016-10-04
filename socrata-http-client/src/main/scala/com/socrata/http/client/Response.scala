@@ -162,7 +162,7 @@ trait Response extends ResponseInfo {
     * @throws com.rojoma.json.v3.io.JsonReaderException if the response is ill-formed or it is not an array.
     */
   def array[T : JsonDecode](acceptableContentType: ContentP = Response.acceptJson, approximateMaximumElementSize: Long = Long.MaxValue): Iterator[T] =
-    new AcknowledgingIterator[T, JsonEvent](jsonEvents(acceptableContentType, approximateMaximumElementSize), JsonArrayIterator[T](_))
+    new AcknowledgingIterator[T, JsonEvent](jsonEvents(acceptableContentType, approximateMaximumElementSize), JsonArrayIterator.fromEvents[T](_))
 }
 
 object Response {
