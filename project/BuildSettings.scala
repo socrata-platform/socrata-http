@@ -5,9 +5,9 @@ import com.socrata.cloudbeessbt.SocrataCloudbeesSbt
 import com.typesafe.tools.mima.plugin.MimaKeys._
 
 object BuildSettings {
-  val cloudbees = "https://repository-socrata-oss.forge.cloudbees.com/"
-  val cloudbeesSnapshots = "snapshots" at cloudbees + "snapshot"
-  val cloudbeesReleases = "releases" at cloudbees + "release"
+  val cloudbees = "https://repo.socrata.com/"
+  val cloudbeesSnapshots = "snapshots" at cloudbees + "libs-snapshot"
+  val cloudbeesReleases = "releases" at cloudbees + "libs-release"
 
   val buildSettings: Seq[Setting[_]] = Defaults.defaultSettings ++ SocrataCloudbeesSbt.socrataBuildSettings ++ Seq(
     scalaVersion := "2.11.7",
