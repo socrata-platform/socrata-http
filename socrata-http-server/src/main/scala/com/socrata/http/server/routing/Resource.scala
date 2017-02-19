@@ -6,8 +6,26 @@ import com.socrata.http.server.implicits._
 import java.util.Locale
 
 trait Resource[From, To] extends Service[From, To] {
+
+  /* HTTP Method handlers. */
+
+  @Unoverridden
+  def connect: Service[From, To] = methodNotAllowed
+
+  @Unoverridden
+  def delete: Service[From, To] = methodNotAllowed
+
   @Unoverridden
   def get: Service[From, To] = methodNotAllowed
+
+  @Unoverridden
+  def head: Service[From, To] = methodNotAllowed
+
+  @Unoverridden
+  def options: Service[From, To] = methodNotAllowed
+
+  @Unoverridden
+  def patch: Service[From, To] = methodNotAllowed
 
   @Unoverridden
   def post: Service[From, To] = methodNotAllowed
@@ -16,10 +34,9 @@ trait Resource[From, To] extends Service[From, To] {
   def put: Service[From, To] = methodNotAllowed
 
   @Unoverridden
-  def delete: Service[From, To] = methodNotAllowed
+  def trace: Service[From, To] = methodNotAllowed
 
-  @Unoverridden
-  def patch: Service[From, To] = methodNotAllowed
+  /* End HTTP method handlers. */
 
   def unknownMethod(method: String): Service[From, To] = methodNotAllowed
 
@@ -27,9 +44,9 @@ trait Resource[From, To] extends Service[From, To] {
   def methodOf(f: From): String
 
   /** Returns the set of HTTP methods allowed by this object.  The default
-    * implementation uses reflection to figure out which of the methods
-    * `get`, `post`, `put`, `delete`, and patch have been overridden, and
-    * assumes that overridden methods are exactly the set of allowed ones.
+    * implementation uses reflection to figure out which of the HTTP methods
+    * have been overridden, and assumes that overridden methods are exactly
+    * the set of allowed ones.
     *
     * @note This MUST be overridden if the heuristic described above is not correct!
     */
@@ -50,21 +67,29 @@ trait Resource[From, To] extends Service[From, To] {
         case _: NoSuchMethodException => /* nothing */
       }
     }
+    check(HttpMethods.CONNECT)
+    check(HttpMethods.DELETE)
     check(HttpMethods.GET)
+    check(HttpMethods.HEAD)
+    check(HttpMethods.OPTIONS)
+    check(HttpMethods.PATCH)
     check(HttpMethods.POST)
     check(HttpMethods.PUT)
-    check(HttpMethods.DELETE)
-    check(HttpMethods.PATCH)
+    check(HttpMethods.TRACE)
     sb.result()
   }
 
   def apply(req: From): To = {
     val serv = methodOf(req) match {
+      case HttpMethods.CONNECT => connect
+      case HttpMethods.DELETE => delete
       case HttpMethods.GET => get
+      case HttpMethods.HEAD => head
+      case HttpMethods.OPTIONS => options
+      case HttpMethods.PATCH => patch
       case HttpMethods.POST => post
       case HttpMethods.PUT => put
-      case HttpMethods.DELETE => delete
-      case HttpMethods.PATCH => patch
+      case HttpMethods.TRACE => trace
       case other => unknownMethod(other)
     }
     serv(req)
