@@ -56,7 +56,8 @@ object SocrataServerJettyServlet {
     hookSignals: Boolean = AbstractSocrataServerJetty.defaultOptions.hookSignals,
     extraHandlers: List[Handler => Handler] = AbstractSocrataServerJetty.defaultOptions.extraHandlers,
     errorHandler: Option[HttpRequest => HttpResponse] = None,
-    poolOptions: Pool.Options = AbstractSocrataServerJetty.defaultOptions.poolOptions
+    poolOptions: Pool.Options = AbstractSocrataServerJetty.defaultOptions.poolOptions,
+    requestHeaderSize: Int = 8192
   ) extends Options {
     type OptT = OptionsImpl
 
@@ -75,6 +76,7 @@ object SocrataServerJettyServlet {
     override def withErrorHandler(h: Option[HttpRequest => HttpResponse]) = copy(errorHandler = h)
     override def withPoolOptions(pOpt: Pool.Options) = copy(poolOptions = pOpt)
     override def withIdleTimeout(it: Int) = this
+    override def withRequestHeaderSize(size: Int) = copy(requestHeaderSize = size)
   }
 
   val defaultOptions: Options = OptionsImpl()
