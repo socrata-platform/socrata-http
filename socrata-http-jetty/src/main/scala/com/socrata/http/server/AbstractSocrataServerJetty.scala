@@ -6,17 +6,16 @@ import org.eclipse.jetty.server.handler.ErrorHandler
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
-
 import sun.misc.Signal
 import sun.misc.SignalHandler
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.Semaphore
-import javax.servlet.http.{HttpServletResponse, HttpServletRequest}
+import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
 
 import com.rojoma.simplearm.v2._
 import com.socrata.util.logging.LazyStringLogger
 import com.typesafe.config.Config
-import org.eclipse.jetty.server.{Request, ServerConnector, Handler, Server}
+import org.eclipse.jetty.server._
 import org.eclipse.jetty.servlets.gzip.GzipHandler
 import org.eclipse.jetty.util.component.LifeCycle
 import org.eclipse.jetty.util.thread.QueuedThreadPool
@@ -44,7 +43,10 @@ abstract class AbstractSocrataServerJetty(handler: Handler, options: AbstractSoc
                                    options.poolOptions.idleTimeoutMs,
                                    q)
     val server = new Server(qtp)
-    val connector = new ServerConnector(server)
+    val httpConfiguration = new HttpConfiguration
+    httpConfiguration.setRequestHeaderSize(options.requestHeaderSize)
+    val httpConnectionFactory = new HttpConnectionFactory(httpConfiguration)
+    val connector = new ServerConnector(server, httpConnectionFactory)
     connector.setPort(port)
     connector.setIdleTimeout(options.poolOptions.idleTimeoutMs)
     server.addConnector(connector)
@@ -296,6 +298,8 @@ object AbstractSocrataServerJetty {
     @deprecated("Use pool options", "5/12/2016")
     def withIdleTimeout(it: Int): OptT
 
+    val requestHeaderSize: Int
+    def withRequestHeaderSize(size: Int): OptT
   }
 
   private case class OptionsImpl(
@@ -309,7 +313,8 @@ object AbstractSocrataServerJetty {
     hookSignals: Boolean = true,
     extraHandlers: List[Handler => Handler] = Nil,
     errorHandler: Option[HttpRequest => HttpResponse] = None,
-    poolOptions: Pool.Options = Pool.defaultOptions
+    poolOptions: Pool.Options = Pool.defaultOptions,
+    requestHeaderSize: Int = 8192
   ) extends Options {
     type OptT = OptionsImpl
 
@@ -325,6 +330,7 @@ object AbstractSocrataServerJetty {
     override def withErrorHandler(h: Option[HttpRequest => HttpResponse]) = copy(errorHandler = h)
     override def withPoolOptions(poolOpt: Pool.Options) = copy(poolOptions = poolOpt)
     override def withIdleTimeout(it: Int) = this
+    override def withRequestHeaderSize(size: Int) = copy(requestHeaderSize = size)
   }
 
   val defaultOptions: Options = OptionsImpl()
@@ -356,7 +362,8 @@ object AbstractSocrataServerJetty {
       varys: Set[String] = Set("Accept-Encoding"),
       excludedMimeTypes: Set[String] = Set.empty,
       bufferSize: Int = 8192,
-      minGzipSize: Int = 256
+      minGzipSize: Int = 256,
+      requestHeaderSize: Int = 8192
     ) extends Options {
       override def withExcludedUserAgents(uas: Set[String]) = copy(excludedUserAgents = uas)
       override def withVarys(vs: Set[String]) = copy(varys = vs)
