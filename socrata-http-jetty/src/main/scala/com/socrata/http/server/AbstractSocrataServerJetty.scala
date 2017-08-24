@@ -25,7 +25,7 @@ import org.eclipse.jetty.util.thread.QueuedThreadPool
  * Base class for Socrata HTTP Servers.  Manages server lifecycle, including graceful
  * termination waiting for requests to clear;  service discovery registration;  signal
  * handling;  and more.
- *
+ * Nothing changes
  */
 abstract class AbstractSocrataServerJetty(handler: Handler, options: AbstractSocrataServerJetty.Options = AbstractSocrataServerJetty.defaultOptions) {
   import options._
