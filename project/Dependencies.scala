@@ -30,9 +30,9 @@ object Dependencies {
   val jodaConvert = "org.joda" % "joda-convert" % "1.2"
   val jodaTime = "joda-time" % "joda-time" % "2.6"
 
-  val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.11.3"
+  val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.13.4"
 
-  val scalaTest = "org.scalatest" %% "scalatest" % "2.1.4"
+  val scalaTest = "org.scalatest" %% "scalatest" % "3.0.0"
 
   def scalaReflect(scalaVersion: String) = "org.scala-lang" % "scala-reflect" % scalaVersion
 
