@@ -1,5 +1,5 @@
 resolvers ++= Seq(
-  "socrata releases" at "https://repository-socrata-oss.forge.cloudbees.com/release"
+  "socrata releases" at "https://repo.socrata.com.com/libs-release"
 )
 
-addSbtPlugin("com.socrata" % "socrata-cloudbees-sbt" % "1.4.1")
+addSbtPlugin("com.typesafe" % "sbt-mima-plugin" % "0.1.11")

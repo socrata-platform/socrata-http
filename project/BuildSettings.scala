@@ -1,20 +1,17 @@
 import sbt._
 import Keys._
 
-import com.socrata.cloudbeessbt.SocrataCloudbeesSbt
 import com.typesafe.tools.mima.plugin.MimaKeys._
 
 object BuildSettings {
-  val cloudbees = "https://repository-socrata-oss.forge.cloudbees.com/"
-  val cloudbeesSnapshots = "snapshots" at cloudbees + "snapshot"
-  val cloudbeesReleases = "releases" at cloudbees + "release"
-
-  val buildSettings: Seq[Setting[_]] = Defaults.defaultSettings ++ SocrataCloudbeesSbt.socrataBuildSettings ++ Seq(
+  val buildSettings: Seq[Setting[_]] = Defaults.defaultSettings ++ Seq(
     scalaVersion := "2.11.7",
-    crossScalaVersions := Seq("2.10.4", scalaVersion.value)
+    crossScalaVersions := Seq("2.10.4", scalaVersion.value),
+    organization := "com.socrata",
+    resolvers += "socrata releases" at "https://repo.socrata.com/artifactory/libs-release"
   )
 
-  val projectSettings: Seq[Setting[_]] = buildSettings ++ SocrataCloudbeesSbt.socrataProjectSettings() ++ Seq(
+  val projectSettings: Seq[Setting[_]] = buildSettings ++ Seq(
     previousArtifact <<= (scalaBinaryVersion, name) { (sv, name) => None /* Some("com.socrata" % (name + "_" + sv) % "2.3.0") */ },
     testOptions in Test ++= Seq(
       Tests.Argument(TestFrameworks.ScalaTest, "-oFD")
