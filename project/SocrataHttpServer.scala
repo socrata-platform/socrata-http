@@ -6,25 +6,24 @@ import Dependencies._
 object SocrataHttpServer {
 
   val settings: Seq[Setting[_]] = BuildSettings.projectSettings ++ Seq(
-    libraryDependencies <++=(scalaVersion) { sv =>
+    libraryDependencies ++=
       Seq(
         commonsIo,
         javaxServlet % "provided",
         jodaConvert,
         jodaTime,
-        scalaReflect(sv),
+        scalaReflect(scalaVersion.value),
         simpleArm,
         slf4jApi,
         socrataThirdpartyUtils,
         typesafeConfig,
         scalaCheck % "test"
-      )
-    },
+      ),
 
     // macro-paradise macros
     resolvers += Resolver.sonatypeRepo("snapshots"),
-    addCompilerPlugin("org.scalamacros" % "paradise" % "2.0.1" cross CrossVersion.full),
-    sourceGenerators in Compile <+= (sourceManaged in Compile, scalaVersion in Compile).map(genParses)
+    addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full),
+    sourceGenerators in Compile += Def.task { genParses((sourceManaged in Compile).value, (scalaVersion in Compile).value) }
   )
 
   def genParse(n: Int, scalaVersion: String): String = {

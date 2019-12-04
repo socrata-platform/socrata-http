@@ -1,6 +1,5 @@
 resolvers ++= Seq(
-  "socrata releases" at "https://repo.socrata.com/libs-release",
-  Resolver.url("typesafe sbt-plugins", url("https://dl.bintray.com/typesafe/sbt-plugins"))(Resolver.ivyStylePatterns)
+  "socrata releases" at "https://repo.socrata.com/libs-release"
 )
 
-addSbtPlugin("com.typesafe" % "sbt-mima-plugin" % "0.1.11")
+addSbtPlugin("com.typesafe" % "sbt-mima-plugin" % "0.6.1")
