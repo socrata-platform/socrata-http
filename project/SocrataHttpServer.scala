@@ -6,6 +6,7 @@ import Dependencies._
 object SocrataHttpServer {
 
   val settings: Seq[Setting[_]] = BuildSettings.projectSettings ++ Seq(
+    name := "socrata-http-server",
     libraryDependencies ++=
       Seq(
         commonsIo,

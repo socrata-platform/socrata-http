@@ -5,6 +5,7 @@ import Dependencies._
 
 object SocrataHttpCommon {
   val settings: Seq[Setting[_]] = BuildSettings.projectSettings ++ Seq(
+    name := "socrata-http-common",
     libraryDependencies ++= Seq(
       commonsCodec,
       commonsLang,

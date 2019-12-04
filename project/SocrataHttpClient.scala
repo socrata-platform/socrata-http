@@ -5,6 +5,7 @@ import Dependencies._
 
 object SocrataHttpClient {
   val settings: Seq[Setting[_]] = BuildSettings.projectSettings ++ Seq(
+    name := "socrata-http-client",
     libraryDependencies ++= Seq(
       apacheHttpClient exclude ("commons-logging", "commons-logging"),
       commonsIo,

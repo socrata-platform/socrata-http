@@ -5,6 +5,7 @@ import Dependencies._
 
 object SocrataHttpJetty {
   val settings: Seq[Setting[_]] = BuildSettings.projectSettings ++ Seq(
+    name := "socrata-http-jetty",
     libraryDependencies ++= Seq(
       socrataUtils,
       jettyJmx,
