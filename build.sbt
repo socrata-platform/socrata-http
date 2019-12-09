@@ -1,7 +1,6 @@
 lazy val build = (project in file(".")).
   settings(BuildSettings.buildSettings ++ Seq(
-    autoScalaLibrary := false,
-    publishArtifact := false
+    publish / skip := true
   )).
   dependsOn(socrataHttpCommon, socrataHttpServer, socrataHttpJetty, socrataHttpCuratorBroker, socrataHttpClient).
   aggregate(socrataHttpCommon, socrataHttpServer, socrataHttpJetty, socrataHttpCuratorBroker, socrataHttpClient)
