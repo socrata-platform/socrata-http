@@ -1,25 +1,23 @@
-lazy val build = (project in file(".")).
-  settings(BuildSettings.buildSettings ++ Seq(
-    publish / skip := true
-  )).
-  dependsOn(socrataHttpCommon, socrataHttpServer, socrataHttpJetty, socrataHttpCuratorBroker, socrataHttpClient).
-  aggregate(socrataHttpCommon, socrataHttpServer, socrataHttpJetty, socrataHttpCuratorBroker, socrataHttpClient)
+ThisBuild / scalaVersion := "2.12.8"
 
-lazy val socrataHttpCommon = (project in file("socrata-http-common")).
-  settings(SocrataHttpCommon.settings)
+ThisBuild / crossScalaVersions := Seq("2.10.4", "2.11.7", scalaVersion.value)
+
+ThisBuild / organization := "com.socrata"
+
+ThisBuild / resolvers += "socrata releases" at "https://repo.socrata.com/artifactory/libs-release"
+
+ThisBuild / testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-oFD")
+
+lazy val socrataHttpCommon = project in file("socrata-http-common")
 
 lazy val socrataHttpServer = (project in file("socrata-http-server")).
-  settings(SocrataHttpServer.settings).
   dependsOn(socrataHttpCommon)
 
 lazy val socrataHttpJetty = (project in file("socrata-http-jetty")).
-  settings(SocrataHttpJetty.settings).
   dependsOn(socrataHttpServer)
 
 lazy val socrataHttpCuratorBroker = (project in file("socrata-http-curator-broker")).
-  settings(SocrataHttpCuratorBroker.settings).
   dependsOn(socrataHttpJetty)
 
 lazy val socrataHttpClient = (project in file("socrata-http-client")).
-  settings(SocrataHttpClient.settings).
   dependsOn(socrataHttpCommon)

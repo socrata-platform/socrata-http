@@ -27,6 +27,7 @@ object PathTreeBuilderImpl {
     val classNameWithExtPattern = "{{" ~> qualName ~ opt("[:!]".r ~ opt(qualName)) <~ "}}(?=/|$)".r ^^ {
       case cn ~ Some(":" ~ rn) => (cn, rn.getOrElse(standardRegexName), false)
       case cn ~ Some("!" ~ rn) => (cn, rn.getOrElse(standardRegexName), true)
+      case _ ~ Some(_ ~ _) => ??? // this can't happen, per the regex in the outer `opt` above
       case cn ~ None => (cn, standardRegexName, false)
     }
     // "any single character that is not { or / or * or + or ?, or a character that is not { or / followed by one or more characters that are not /, or no characters, all followed by end of component"

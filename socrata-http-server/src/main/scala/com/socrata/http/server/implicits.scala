@@ -1,5 +1,7 @@
 package com.socrata.http.server
 
+import scala.language.implicitConversions
+
 import java.io.InputStreamReader
 import java.nio.charset.Charset
 import javax.activation.MimeType
