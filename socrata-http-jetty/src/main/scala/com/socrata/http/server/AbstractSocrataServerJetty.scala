@@ -16,7 +16,7 @@ import com.rojoma.simplearm.v2._
 import com.socrata.util.logging.LazyStringLogger
 import com.typesafe.config.Config
 import org.eclipse.jetty.server._
-import org.eclipse.jetty.servlets.gzip.GzipHandler
+import org.eclipse.jetty.server.handler.gzip.GzipHandler
 import org.eclipse.jetty.util.component.LifeCycle
 import org.eclipse.jetty.util.thread.QueuedThreadPool
 
@@ -178,14 +178,14 @@ abstract class AbstractSocrataServerJetty(handler: Handler, options: AbstractSoc
 
   private def gzipHandler(underlying: Handler): Handler = gzipOptions match {
     case Some(opts) =>
-      val gz = new GzipHandler
+      val gz = new GzipHandler() {
+         override val getVaryField = new org.eclipse.jetty.http.PreEncodedHttpField(org.eclipse.jetty.http.HttpHeader.VARY, opts.varys.mkString(", "))
+      }
       gz.setHandler(underlying)
-      gz.setExcluded(opts.excludedUserAgents.asJava)
-      gz.setMimeTypes(opts.excludedMimeTypes.asJava)
-      gz.setExcludeMimeTypes(true)
-      gz.setBufferSize(opts.bufferSize)
+      gz.setExcludedAgentPatterns(opts.excludedUserAgents.toSeq : _*)
+      gz.setExcludedMimeTypes(opts.excludedMimeTypes.toSeq : _*)
+      gz.setInflateBufferSize(opts.bufferSize)
       gz.setMinGzipSize(opts.minGzipSize)
-      gz.setVary(opts.varys.mkString(", "))
       gz
     case None =>
       underlying
