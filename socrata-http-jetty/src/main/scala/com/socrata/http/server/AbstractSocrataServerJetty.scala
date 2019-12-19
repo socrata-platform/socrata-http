@@ -68,7 +68,9 @@ abstract class AbstractSocrataServerJetty(handler: Handler, options: AbstractSoc
           using(new ResourceScope("error handler")) { rs =>
             val req = new ConcreteHttpRequest(new AugmentedHttpServletRequest(request), rs)
             baseRequest.setHandled(true)
-            errorHandler(req)(response)
+            val resp = new ConsumingHttpServletResponse(request, response)
+            try { errorHandler(req)(resp) }
+            finally { resp.consume() }
           }
         }
       })

@@ -8,22 +8,28 @@ import com.rojoma.simplearm.v2._
 import org.slf4j.MDC
 
 private class FunctionHandler(handler: HttpService) extends AbstractHandler {
-  def handle(target: String, baseRequest: Request, request: HttpServletRequest, response: HttpServletResponse): Unit = {
+  def handle(target: String, baseRequest: Request, request: HttpServletRequest, baseResponse: HttpServletResponse): Unit = {
     if(isStarted) {
       baseRequest.setHandled(true)
       try {
         MDC.clear()
         using(new ResourceScope("request scope")) { rs =>
           val request = new ConcreteHttpRequest(new HttpRequest.AugmentedHttpServletRequest(baseRequest), rs)
-          try { // force checking the path and query parameters
-            request.queryParametersSeq
-            request.requestPath
-          } catch {
-            case _: IllegalArgumentException =>
-              response.sendError(HttpServletResponse.SC_BAD_REQUEST)
-              return
+          val response = new ConsumingHttpServletResponse(baseRequest, baseResponse)
+
+          try {
+            try { // force checking the path and query parameters
+              request.queryParametersSeq
+              request.requestPath
+            } catch {
+              case _: IllegalArgumentException =>
+                response.sendError(HttpServletResponse.SC_BAD_REQUEST)
+                return
+            }
+            handler(request)(response)
+          } finally {
+            response.consume()
           }
-          handler(request)(response)
         }
       } finally {
         MDC.clear()
