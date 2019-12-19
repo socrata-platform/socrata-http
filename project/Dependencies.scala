@@ -17,7 +17,7 @@ object Dependencies {
 
   val javaxServlet = "javax.servlet" % "javax.servlet-api" % "3.1.0"
 
-  val jettyVersion = "9.2.2.v20140723"
+  val jettyVersion = "9.4.24.v20191120"
   val jettyJmx = "org.eclipse.jetty" % "jetty-jmx" % jettyVersion
   val jettyServer = "org.eclipse.jetty" % "jetty-server" % jettyVersion
   val jettyServlet = "org.eclipse.jetty" % "jetty-servlet" % jettyVersion

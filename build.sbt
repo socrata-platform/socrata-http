@@ -21,3 +21,5 @@ lazy val socrataHttpCuratorBroker = (project in file("socrata-http-curator-broke
 
 lazy val socrataHttpClient = (project in file("socrata-http-client")).
   dependsOn(socrataHttpCommon)
+
+publish / skip := true
