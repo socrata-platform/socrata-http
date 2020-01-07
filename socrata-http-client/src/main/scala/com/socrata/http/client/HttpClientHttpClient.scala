@@ -141,7 +141,7 @@ class HttpClientHttpClient(executor: Executor, options: HttpClientHttpClient.Opt
         }
 
         val entity = response.getEntity
-        val content = if(entity != null) entity.getContent() else EmptyInputStream
+        val content = if(entity != null) scope.open(entity.getContent()) else EmptyInputStream
         new RawResponse with Closeable {
           var exceptionWhileReading = false
           val body = CatchingInputStream(new BufferedInputStream(content)) {
