@@ -8,6 +8,7 @@ import com.rojoma.json.v3.io.{JsonReader, FusedBlockJsonEventIterator, JsonEvent
 import com.rojoma.json.v3.ast.JValue
 import com.rojoma.json.v3.codec.{DecodeError, JsonDecode}
 import com.rojoma.json.v3.util.JsonArrayIterator
+import com.rojoma.simplearm.v2._
 
 import com.socrata.http.client.exceptions._
 import com.socrata.http.common.util.{CharsetFor, AcknowledgeableInputStream, Acknowledgeable}
@@ -67,7 +68,17 @@ trait Response extends ResponseInfo {
     *
     * @throws java.lang.IllegalStateException if the stream has already been created.
     */
-  def inputStream(maximumSizeBetweenAcks: Long = Long.MaxValue): InputStream with Acknowledgeable
+  def inputStreamUnmanaged(maximumSizeBetweenAcks: Long = Long.MaxValue): InputStream with Acknowledgeable
+
+  @deprecated(message = "Prefer the resource-scope or managed versions.  Use inputStreamUnmanaged if you really want an unmanaged stream")
+  final def inputStream(maximumSizeBetweenAcks: Long = Long.MaxValue): InputStream with Acknowledgeable =
+    inputStreamUnmanaged(maximumSizeBetweenAcks)
+
+  final def inputStreamScoped(rs: ResourceScope, maximumSizeBetweenAcks: Long = Long.MaxValue): InputStream with Acknowledgeable =
+    rs.open(inputStreamUnmanaged(maximumSizeBetweenAcks))
+
+  final def inputStreamManaged(maximumSizeBetweenAcks: Long = Long.MaxValue): Managed[InputStream with Acknowledgeable] =
+    managed(inputStreamUnmanaged(maximumSizeBetweenAcks))
 
   /** Gets the response body as a `Reader`.  The returned reader will
     * throw a [[com.socrata.http.common.util.TooMuchDataWithoutAcknowledgement]] exception
@@ -86,16 +97,27 @@ trait Response extends ResponseInfo {
     * @throws com.socrata.http.client.exceptions.UnsupportedCharset if `charset` is `None` and the `Content-Type` header contains
     *                                                                 a valid but unknown `charset` parameter.
     */
-  def reader(charset: Option[Charset] = None, maximumSizeBetweenAcks: Long = Long.MaxValue): Reader with Acknowledgeable = {
-    val stream = inputStream(maximumSizeBetweenAcks)
+  def readerUnmanaged(charset: Option[Charset] = None, maximumSizeBetweenAcks: Long = Long.MaxValue): Reader with Acknowledgeable = {
+    val cs = charset.getOrElse(this.charset)
+    val stream = inputStreamUnmanaged(maximumSizeBetweenAcks)
     // For now, this MUST (despite the type) return an InputStreamReader!  This is because,
     // in order to preserve binary compatibility, the StandardReader#asReader method must
     // return an InputStreamReader.  Therefore, the result of this method gets dowcast there
     // as I don't want THIS method falling into that same trap.
-    new InputStreamReader(stream, charset.getOrElse(this.charset)) with Acknowledgeable {
+    new InputStreamReader(stream, cs) with Acknowledgeable {
       def acknowledge() = stream.acknowledge()
     }
   }
+
+  @deprecated(message = "Prefer the resource-scope or managed versions.  Use readerUnmanaged if you really want an unmanaged reader")
+  final def reader(charset: Option[Charset] = None, maximumSizeBetweenAcks: Long = Long.MaxValue): Reader with Acknowledgeable =
+    readerUnmanaged(charset, maximumSizeBetweenAcks)
+
+  final def readerScoped(rs: ResourceScope, charset: Option[Charset] = None, maximumSizeBetweenAcks: Long = Long.MaxValue): Reader with Acknowledgeable =
+    rs.open(readerUnmanaged(charset, maximumSizeBetweenAcks))
+
+  final def readerManaged(charset: Option[Charset] = None, maximumSizeBetweenAcks: Long = Long.MaxValue): Managed[Reader with Acknowledgeable] =
+    managed(readerUnmanaged(charset, maximumSizeBetweenAcks))
 
   /** Gets the response body as an `Iterator[JsonEvent]`.  The returned iterator will
     * throw a [[com.socrata.http.common.util.TooMuchDataWithoutAcknowledgement]] exception
@@ -109,13 +131,24 @@ trait Response extends ResponseInfo {
     * @throws com.socrata.http.client.exceptions.ContentTypeException if the response does not have an interpretable `Content-type`
     *                                                                   or if it is not accepted by `acceptableContentType`
     */
-  def jsonEvents(acceptableContentType: ContentP = Response.acceptJson, maximumSizeBetweenAcks: Long = Long.MaxValue): Iterator[JsonEvent] with Acknowledgeable = {
+  def jsonEventsUnmanaged(acceptableContentType: ContentP = Response.acceptJson, maximumSizeBetweenAcks: Long = Long.MaxValue): Iterator[JsonEvent] with Acknowledgeable with AutoCloseable = {
     if(!acceptableContentType(contentType)) throw responseNotJson(contentType)
-    val r = reader(None, maximumSizeBetweenAcks)
-    new FusedBlockJsonEventIterator(r) with Acknowledgeable {
+    val r = readerUnmanaged(None, maximumSizeBetweenAcks)
+    new FusedBlockJsonEventIterator(r) with Acknowledgeable with AutoCloseable {
       def acknowledge() = r.acknowledge()
+      def close() = r.close()
     }
   }
+
+  @deprecated(message = "Prefer the resource-scope or managed versions.  Use jsonEventsUnmanaged if you really want an unmanaged event stream")
+  final def jsonEvents(acceptableContentType: ContentP = Response.acceptJson, maximumSizeBetweenAcks: Long = Long.MaxValue): Iterator[JsonEvent] with Acknowledgeable with AutoCloseable =
+    jsonEventsUnmanaged(acceptableContentType, maximumSizeBetweenAcks)
+
+  final def jsonEventsScoped(rs: ResourceScope, acceptableContentType: ContentP = Response.acceptJson, maximumSizeBetweenAcks: Long = Long.MaxValue): Iterator[JsonEvent] with Acknowledgeable =
+    rs.open(jsonEventsUnmanaged(acceptableContentType, maximumSizeBetweenAcks))
+
+  final def jsonEventsManaged(rs: ResourceScope, acceptableContentType: ContentP = Response.acceptJson, maximumSizeBetweenAcks: Long = Long.MaxValue): Managed[Iterator[JsonEvent] with Acknowledgeable] =
+    managed(jsonEventsUnmanaged(acceptableContentType, maximumSizeBetweenAcks))
 
   /** Gets the response body as a `JValue`.
     *
@@ -129,8 +162,9 @@ trait Response extends ResponseInfo {
     */
   def jValue(acceptableContentType: ContentP = Response.acceptJson, approximateMaximumSize: Long = Long.MaxValue): JValue ={
     if(!acceptableContentType(contentType)) throw responseNotJson(contentType)
-    val r = reader(None, approximateMaximumSize)
-    JsonReader.fromReader(r)
+    for(r <- readerManaged(None, approximateMaximumSize)) {
+      JsonReader.fromReader(r)
+    }
   }
 
   /** Gets the response body as an instance of a class which is convertable from JSON.
@@ -161,8 +195,22 @@ trait Response extends ResponseInfo {
     *                                                                   it is not accepted by `acceptableContentType`.
     * @throws com.rojoma.json.v3.io.JsonReaderException if the response is ill-formed or it is not an array.
     */
-  def array[T : JsonDecode](acceptableContentType: ContentP = Response.acceptJson, approximateMaximumElementSize: Long = Long.MaxValue): Iterator[T] =
-    new AcknowledgingIterator[T, JsonEvent](jsonEvents(acceptableContentType, approximateMaximumElementSize), JsonArrayIterator.fromEvents[T](_))
+  def arrayUnmanaged[T : JsonDecode](acceptableContentType: ContentP = Response.acceptJson, approximateMaximumElementSize: Long = Long.MaxValue): Iterator[T] with AutoCloseable = {
+    val events = jsonEventsUnmanaged(acceptableContentType, approximateMaximumElementSize)
+    new AcknowledgingIterator[T, JsonEvent](events, JsonArrayIterator.fromEvents[T](_)) with AutoCloseable {
+      def close() = events.close()
+    }
+  }
+
+  @deprecated(message = "Prefer the resource-scope or managed versions.  Use jsonEventsUnmanaged if you really want an unmanaged event stream")
+  final def array[T : JsonDecode](acceptableContentType: ContentP = Response.acceptJson, approximateMaximumElementSize: Long = Long.MaxValue): Iterator[T] with AutoCloseable =
+    arrayUnmanaged[T](acceptableContentType, approximateMaximumElementSize)
+
+  final def arrayScoped[T : JsonDecode](rs: ResourceScope, acceptableContentType: ContentP = Response.acceptJson, approximateMaximumElementSize: Long = Long.MaxValue): Iterator[T] =
+    rs.open(arrayUnmanaged(acceptableContentType, approximateMaximumElementSize))
+
+  final def arrayManaged[T : JsonDecode](rs: ResourceScope, acceptableContentType: ContentP = Response.acceptJson, approximateMaximumElementSize: Long = Long.MaxValue): Managed[Iterator[T]] =
+    managed(arrayUnmanaged(acceptableContentType, approximateMaximumElementSize))
 }
 
 object Response {
@@ -214,7 +262,7 @@ class StandardResponse(responseInfo: ResponseInfo, rawInputStream: InputStream) 
       StandardCharsets.ISO_8859_1
   }
 
-  def inputStream(maximumSizeBetweenAcks: Long): InputStream with Acknowledgeable = {
+  def inputStreamUnmanaged(maximumSizeBetweenAcks: Long): InputStream with Acknowledgeable = {
     if(_streamCreated) throw new IllegalStateException("Already got the response body")
     _streamCreated = true
     new AcknowledgeableInputStream(rawInputStream, maximumSizeBetweenAcks)
