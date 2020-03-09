@@ -1,13 +1,16 @@
 package com.socrata.http.server
 
+import scala.util.control.ControlThrowable
 import org.eclipse.jetty.server.handler.{HandlerWrapper, AbstractHandler}
 import org.eclipse.jetty.server.{Handler, Request}
 import javax.servlet.http.{HttpServletResponse, HttpServletRequest}
 import java.util.concurrent.atomic.AtomicInteger
 import com.rojoma.simplearm.v2._
-import org.slf4j.MDC
+import org.slf4j.{MDC, LoggerFactory}
 
 private class FunctionHandler(handler: HttpService) extends AbstractHandler {
+  private val log = LoggerFactory.getLogger(classOf[FunctionHandler])
+
   def handle(target: String, baseRequest: Request, request: HttpServletRequest, baseResponse: HttpServletResponse): Unit = {
     if(isStarted) {
       baseRequest.setHandled(true)
@@ -27,6 +30,24 @@ private class FunctionHandler(handler: HttpService) extends AbstractHandler {
                 return
             }
             handler(request)(response)
+          } catch {
+            case e: ControlThrowable =>
+              throw e
+            case e: Exception =>
+              log.error("Unhandled exception", e)
+              if(!response.isCommitted) {
+                response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR)
+              } else {
+                log.warn("Response already committed; not sending 500")
+              }
+            case e: Throwable =>
+              try {
+                log.error("Unhandled exception", e)
+              } catch {
+                case e2: Throwable =>
+                  e.addSuppressed(e2)
+              }
+              throw e
           } finally {
             response.consume()
           }

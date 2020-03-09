@@ -1,6 +1,7 @@
 package com.socrata.http.server.util.handlers
 
 import com.socrata.http.server.{HttpRequest, HttpService}
+import javax.servlet.http.HttpServletResponse
 import org.slf4j.{LoggerFactory, Logger, MDC}
 
 /**
@@ -16,8 +17,15 @@ class NewLoggingHandler(underlying: HttpService, options: LoggingOptions) extend
   import collection.JavaConverters._
 
   def apply(req: HttpRequest) = { resp =>
+    val helper = req.resourceScope.open(new LoggingHelper(req, resp))
+    underlying(req)(helper.inspectableResp)
+  }
+
+  private class LoggingHelper(req: HttpRequest, resp: HttpServletResponse) extends AutoCloseable {
     val log = options.log
     val start = System.nanoTime()
+
+    val inspectableResp = new InspectableHttpServletResponse(resp)
 
     if(log.isInfoEnabled) {
       val reqStr = req.method + " " + req.requestPathStr + req.queryStr.fold("") { q =>
@@ -32,18 +40,15 @@ class NewLoggingHandler(underlying: HttpService, options: LoggingOptions) extend
       if (log.isDebugEnabled && headers.nonEmpty) log.debug(">>> ReqHeaders:: " + headers.mkString(", "))
     }
 
-    val trueResp = new InspectableHttpServletResponse(resp)
-    try {
-      underlying(req)(trueResp)
-    } finally {
+    override def close() {
       val end = System.nanoTime()
       val extra =
-        if(trueResp.status >= 400) " ERROR " + trueResp.status
+        if(inspectableResp.status >= 400) " ERROR " + inspectableResp.status
         else ""
       log.info("<<< {}ms{}", (end - start)/1000000, extra)
 
       val headers = options.logResponseHeaders.flatMap { hdr =>
-        trueResp.getHeaders(hdr).asScala.map { value => hdr + ": " + value }.toSeq
+        inspectableResp.getHeaders(hdr).asScala.map { value => hdr + ": " + value }.toSeq
       }
       if (log.isDebugEnabled && headers.nonEmpty) log.debug("<<< RespHeaders:: " + headers.mkString(", "))
       MDC.clear()
