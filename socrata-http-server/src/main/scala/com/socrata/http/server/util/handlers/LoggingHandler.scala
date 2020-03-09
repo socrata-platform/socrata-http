@@ -6,21 +6,26 @@ import org.slf4j.{LoggerFactory, Logger}
 
 class LoggingHandler(underlying: HttpService, log: Logger = LoggingHandler.defaultLog) extends HttpService {
   def apply(req: HttpRequest) = { resp =>
+    val helper = req.resourceScope.open(new LoggingHelper(req, resp))
+    underlying(req)(helper.inspectableResp)
+  }
+
+  private class LoggingHelper(req: HttpRequest, resp: HttpServletResponse) extends AutoCloseable {
     val start = System.nanoTime()
 
+    val inspectableResp = new InspectableHttpServletResponse(resp)
+
     if(log.isInfoEnabled) {
-      val reqStr = req.method + " " + req.requestPathStr + Option(req.queryStr).fold("") { q =>
+      val reqStr = req.method + " " + req.requestPathStr + req.queryStr.fold("") { q =>
         "?" + q
       }
       log.info(">>> " + reqStr)
     }
-    val trueResp = new InspectableHttpServletResponse(resp)
-    try {
-      underlying(req)(trueResp)
-    } finally {
+
+    override def close() {
       val end = System.nanoTime()
       val extra =
-        if(trueResp.status >= 400) " ERROR " + trueResp.status
+        if(inspectableResp.status >= 400) " ERROR " + inspectableResp.status
         else ""
       log.info("<<< {}ms{}", (end - start)/1000000, extra)
     }
