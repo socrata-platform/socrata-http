@@ -16,7 +16,7 @@ import org.apache.http.conn.ConnectTimeoutException
 import org.apache.http.conn.socket.{PlainConnectionSocketFactory, ConnectionSocketFactory}
 import org.apache.http.entity._
 import org.apache.http.impl.client.{DefaultConnectionKeepAliveStrategy, HttpClients}
-import org.apache.http.impl.conn.PoolingHttpClientConnectionManager
+import org.apache.http.impl.conn.{PoolingHttpClientConnectionManager, SystemDefaultDnsResolver}
 
 import com.socrata.http.client.exceptions._
 import com.socrata.http.common.util.TimeoutManager
@@ -44,8 +44,23 @@ class HttpClientHttpClient(executor: Executor, options: HttpClientHttpClient.Opt
       .register("http", PlainConnectionSocketFactory.getSocketFactory)
       .build()
 
+  private[this] val dnsResolver =
+    options.blockAddresses match {
+      case None =>
+        new SystemDefaultDnsResolver
+      case Some(block) =>
+        new SystemDefaultDnsResolver {
+          override def resolve(host: String): Array[InetAddress] = {
+            val results = InetAddress.getAllByName(host).filterNot(block)
+            if(results.isEmpty) throw new UnknownHostException(host)
+            results
+          }
+        }
+    }
+
   private[this] val connectionManager = locally {
-    val connManager = new PoolingHttpClientConnectionManager(socketFactoryRegistry)
+    val connManager = new PoolingHttpClientConnectionManager(socketFactoryRegistry,
+                                                             dnsResolver)
     connManager.setDefaultMaxPerRoute(Int.MaxValue)
     connManager.setMaxTotal(Int.MaxValue)
     connManager
@@ -317,6 +332,16 @@ object HttpClientHttpClient {
 
     val followRedirects: Boolean
     def withFollowRedirects(fr: Boolean): Options
+
+    val blockAddresses: Option[InetAddress => Boolean]
+    def withBlockAddresses(nl: Option[InetAddress => Boolean]): Options
+  }
+
+  object Options {
+    // this is a val so it has identity
+    val isLocal: InetAddress => Boolean = { (addr: InetAddress) =>
+      addr.isLinkLocalAddress || addr.isSiteLocalAddress || addr.isLoopbackAddress
+    }
   }
 
   private case class OptionsImpl(
@@ -325,7 +350,8 @@ object HttpClientHttpClient {
     sslContext: SSLContext = SSLContext.getDefault,
     contentCompression: Boolean = false,
     proxy: Option[HttpHost] = None,
-    followRedirects: Boolean = true
+    followRedirects: Boolean = true,
+    blockAddresses: Option[InetAddress => Boolean] = None
   ) extends Options {
     def withLivenessChecker(lc: LivenessChecker) = copy(livenessChecker = lc)
     def withUserAgent(ua: String) = copy(userAgent = ua)
@@ -333,6 +359,7 @@ object HttpClientHttpClient {
     def withContentCompression(enabled: Boolean) = copy(contentCompression = enabled)
     def withProxy(prx: Option[HttpHost]): Options = copy(proxy = prx)
     def withFollowRedirects(fr: Boolean): Options = copy(followRedirects = fr)
+    def withBlockAddresses(ba: Option[InetAddress => Boolean]): Options = copy(blockAddresses = ba)
   }
 
   val defaultOptions: Options = OptionsImpl()
