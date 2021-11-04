@@ -296,7 +296,7 @@ class HttpClientHttpClient(executor: Executor, options: HttpClientHttpClient.Opt
 
   def processBlob(req: BlobHttpRequest): RawResponse with Closeable = {
     init()
-    val sendEntity = new InputStreamEntity(req.contents, -1, ContentType.create(req.contentType))
+    val sendEntity = new InputStreamEntity(req.contents, -1, ContentType.parse(req.contentType))
     val op = bodyEnclosingOp(req)
     op.setEntity(sendEntity)
     send(op, req.builder.timeoutMS, pingTarget(req))
