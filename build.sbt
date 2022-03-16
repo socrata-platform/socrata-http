@@ -6,7 +6,7 @@ ThisBuild / organization := "com.socrata"
 
 ThisBuild / resolvers += "socrata releases" at "https://repo.socrata.com/artifactory/libs-release"
 
-ThisBuild / testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-oFD")
+ThisBuild / Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-oFD")
 
 lazy val socrataHttpCommon = project in file("socrata-http-common")
 

@@ -20,7 +20,7 @@ libraryDependencies ++=
 // macro-paradise macros
 addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
 
-sourceGenerators in Compile += Def.task { genParses((sourceManaged in Compile).value, (scalaVersion in Compile).value) }
+Compile / sourceGenerators += Def.task { genParses((Compile / sourceManaged).value, (Compile / scalaVersion).value) }
 
 def genParse(n: Int, scalaVersion: String): String = {
   val typeVars = (0 until n).map { i => ('A' + i).toChar }
