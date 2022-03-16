@@ -1,6 +1,7 @@
 package com.socrata.http.common.util
 
-import com.rojoma.json.ast.JString
+import com.rojoma.json.v3.ast.JString
+
 import java.lang.{StringBuilder => JStringBuilder}
 import org.joda.time.DateTime
 import org.joda.time.format.DateTimeFormat

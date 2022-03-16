@@ -10,7 +10,7 @@ class PathTreeTest extends FunSuite with MustMatchers with PropertyChecks {
 
   def pm[R](xs: String*)(f: R, wantMore: Boolean = false): PathTree[R] = {
     // build a matcher of string literals which cannot be recognized as such
-    PathTree(xs.map { x => new Matcher { def matches(s: String) = s == x; override def toString = com.rojoma.json.ast.JString(x).toString } }, f, wantMore)
+    PathTree(xs.map { x => new Matcher { def matches(s: String) = s == x; override def toString = com.rojoma.json.v3.ast.JString(x).toString } }, f, wantMore)
   }
 
   def sm(s: String) = new Matcher.StringMatcher(s)
