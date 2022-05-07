@@ -15,7 +15,9 @@ libraryDependencies ++=
     typesafeConfig,
     scalaTest % "test",
     scalaCheck % "test"
-  ) ++ (if(scalaVersion.value.startsWith("2.10.")) Nil else Seq("org.scala-lang.modules" %% "scala-parser-combinators" % "2.1.0"))
+  ) ++ (if(scalaVersion.value.startsWith("2.10.")) Nil
+        else if(scalaVersion.value.startsWith("2.11."))  Seq("org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.1")
+        else Seq("org.scala-lang.modules" %% "scala-parser-combinators" % "2.1.0"))
 
 // macro-paradise macros
 addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
