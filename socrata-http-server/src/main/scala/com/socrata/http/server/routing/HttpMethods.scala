@@ -9,5 +9,6 @@ object HttpMethods {
   val PATCH = "PATCH"
   val POST = "POST"
   val PUT = "PUT"
+  val QUERY = "QUERY"
   val TRACE = "TRACE"
 }

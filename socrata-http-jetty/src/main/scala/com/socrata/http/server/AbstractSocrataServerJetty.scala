@@ -187,7 +187,7 @@ abstract class AbstractSocrataServerJetty(handler: Handler, options: AbstractSoc
       gz.setExcludedAgentPatterns(opts.excludedUserAgents.toSeq : _*)
       gz.setExcludedMimeTypes(opts.excludedMimeTypes.toSeq : _*)
       gz.setInflateBufferSize(opts.bufferSize)
-      gz.setIncludedMethods("GET", "POST", "PUT", "PATCH")
+      gz.setIncludedMethods("GET", "POST", "PUT", "PATCH", "QUERY")
       gz.setMinGzipSize(opts.minGzipSize)
       gz
     case None =>
