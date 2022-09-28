@@ -34,6 +34,9 @@ trait Resource[From, To] extends Service[From, To] {
   def put: Service[From, To] = methodNotAllowed
 
   @Unoverridden
+  def query: Service[From, To] = methodNotAllowed
+
+  @Unoverridden
   def trace: Service[From, To] = methodNotAllowed
 
   /* End HTTP method handlers. */
@@ -75,6 +78,7 @@ trait Resource[From, To] extends Service[From, To] {
     check(HttpMethods.PATCH)
     check(HttpMethods.POST)
     check(HttpMethods.PUT)
+    check(HttpMethods.QUERY)
     check(HttpMethods.TRACE)
     sb.result()
   }
@@ -89,6 +93,7 @@ trait Resource[From, To] extends Service[From, To] {
       case HttpMethods.PATCH => patch
       case HttpMethods.POST => post
       case HttpMethods.PUT => put
+      case HttpMethods.QUERY => query
       case HttpMethods.TRACE => trace
       case other => unknownMethod(other)
     }
