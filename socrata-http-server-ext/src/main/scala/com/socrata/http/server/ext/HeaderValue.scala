@@ -12,11 +12,20 @@ class HeaderValue private (val underlying: String) {
 
 object HeaderValue {
   private def validHeaderValue(s: String): Boolean = {
-    true // TODO
+    var i = 0;
+    while(i != s.length) {
+      val c = s.charAt(i)
+      if(c < 32 || c > 127) return false
+    }
+    true
   }
 
   def apply(s: String) = {
     require(validHeaderValue(s))
     new HeaderValue(s)
+  }
+
+  def apply(hv: HeaderValue) = {
+    new HeaderValue(hv.underlying)
   }
 }
