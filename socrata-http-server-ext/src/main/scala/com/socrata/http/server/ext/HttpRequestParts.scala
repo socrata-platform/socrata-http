@@ -11,6 +11,7 @@ trait RequestParts {
   def uri: String
   def query: Option[String]
   def extensions: Extensions
+  def requestId: RequestId
 
   def withExtension[T](kv: (Extensions.Key[T], T)): RequestParts
 }
@@ -22,6 +23,7 @@ object RequestParts {
     def method = req.method
     def uri = req.requestPathStr
     def query = req.queryStr
+    def requestId = new RequestId(req.requestId)
 
     def headers = headersBox.get
 

@@ -14,4 +14,9 @@ object FromRequestParts {
     def extract(req: RequestParts): HandlerDecision[ResourceScope] =
       Accepted(req.resourceScope)
   }
+
+  implicit object requestId extends FromRequestParts[RequestId] {
+    def extract(req: RequestParts): HandlerDecision[RequestId] =
+      Accepted(req.requestId)
+  }
 }
