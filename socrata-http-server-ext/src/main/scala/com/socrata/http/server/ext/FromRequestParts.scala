@@ -2,6 +2,8 @@ package com.socrata.http.server.ext
 
 import com.rojoma.simplearm.v2.ResourceScope
 
+import com.socrata.http.server.util.Precondition
+
 trait FromRequestParts[T] {
   def extract(req: RequestParts): HandlerDecision[T]
 }
@@ -18,5 +20,10 @@ object FromRequestParts {
   implicit object requestId extends FromRequestParts[RequestId] {
     def extract(req: RequestParts): HandlerDecision[RequestId] =
       Accepted(req.requestId)
+  }
+
+  implicit object preconditionId extends FromRequestParts[Precondition] {
+    def extract(req: RequestParts): HandlerDecision[Precondition] =
+      Accepted(req.precondition)
   }
 }
