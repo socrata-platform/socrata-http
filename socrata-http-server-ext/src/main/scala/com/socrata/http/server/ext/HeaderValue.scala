@@ -16,6 +16,7 @@ object HeaderValue {
     while(i != s.length) {
       val c = s.charAt(i)
       if(c < 32 || c > 127) return false
+      i += 1
     }
     true
   }
