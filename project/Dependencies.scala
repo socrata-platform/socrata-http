@@ -1,7 +1,7 @@
 import sbt._
 
 object Dependencies {
-  val apacheHttpComponentsVersion = "4.3.3"
+  val apacheHttpComponentsVersion = "4.5.14"
   val apacheHttpClient = "org.apache.httpcomponents" % "httpclient" % apacheHttpComponentsVersion exclude ("commons-logging", "commons-logging")
   val apacheHttpMime = "org.apache.httpcomponents" % "httpmime" % apacheHttpComponentsVersion exclude ("commons-logging", "commons-logging")
 
