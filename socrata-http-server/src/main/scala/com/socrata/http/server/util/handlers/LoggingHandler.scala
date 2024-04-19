@@ -1,7 +1,7 @@
 package com.socrata.http.server.util.handlers
 
 import com.socrata.http.server.{HttpRequest, HttpService}
-import javax.servlet.http.{HttpServletResponseWrapper, HttpServletResponse}
+import jakarta.servlet.http.{HttpServletResponseWrapper, HttpServletResponse}
 import org.slf4j.{LoggerFactory, Logger}
 
 class LoggingHandler(underlying: HttpService, log: Logger = LoggingHandler.defaultLog) extends HttpService {

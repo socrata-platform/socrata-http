@@ -1,8 +1,8 @@
 package com.socrata.http.server
 
 import java.nio.charset.{StandardCharsets, Charset}
-import javax.activation.MimeType
-import javax.servlet.http.HttpServletResponse
+import jakarta.activation.MimeType
+import jakarta.servlet.http.HttpServletResponse
 import java.io.{InputStream, OutputStreamWriter, OutputStream, Writer}
 import java.net.URL
 

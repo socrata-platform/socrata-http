@@ -4,10 +4,10 @@ import scala.language.implicitConversions
 
 import java.io.InputStreamReader
 import java.nio.charset.Charset
-import javax.activation.MimeType
+import jakarta.activation.MimeType
 
 import scala.collection.JavaConverters._
-import javax.servlet.http.HttpServletRequest
+import jakarta.servlet.http.HttpServletRequest
 import java.net.URLDecoder
 
 import com.socrata.http.server.`-impl`.ChainedHttpResponse

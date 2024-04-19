@@ -1,6 +1,6 @@
 package com.socrata.http.client
 
-import javax.activation.MimeType
+import jakarta.activation.MimeType
 
 package object exceptions {
   def connectTimeout() = throw new ConnectTimeout

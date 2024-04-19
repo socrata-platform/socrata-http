@@ -1,7 +1,7 @@
 package com.socrata.http.server.util.handlers
 
 import com.socrata.http.server.{HttpRequest, HttpService}
-import javax.servlet.http.HttpServletResponse
+import jakarta.servlet.http.HttpServletResponse
 import org.slf4j.{LoggerFactory, Logger, MDC}
 
 /**

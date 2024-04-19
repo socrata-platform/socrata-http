@@ -145,8 +145,8 @@ private[client] final class LivenessCheckerImpl(intervalMS: Long, rangeMS: Int, 
   private val RandBytesSize = 16
   private val txPacketCapacity = 8 + RandBytesSize
   private val rxPacketHeader = txPacketCapacity
-  val txPacket = ByteBuffer.allocate(txPacketCapacity)
-  val rxPacket = ByteBuffer.allocate(512)
+  private val txPacket = ByteBuffer.allocate(txPacketCapacity)
+  private val rxPacket = ByteBuffer.allocate(512)
 
   private class Job(val target: LivenessCheckTarget) extends IntrusivePriorityQueueNode {
     def waitUntil = priority
@@ -329,7 +329,7 @@ private[client] final class LivenessCheckerImpl(intervalMS: Long, rangeMS: Int, 
     }
 
     rxPacket.flip()
-    log.debug("Received a {}-byte datagram from {}", rxPacket.limit, from)
+    log.debug("Received a {}-byte datagram from {}", rxPacket.limit(), from)
     processRxPacket(from)
     processPackets()
   }

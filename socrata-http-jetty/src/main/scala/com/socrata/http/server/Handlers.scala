@@ -3,7 +3,7 @@ package com.socrata.http.server
 import scala.util.control.ControlThrowable
 import org.eclipse.jetty.server.handler.{HandlerWrapper, AbstractHandler}
 import org.eclipse.jetty.server.{Handler, Request}
-import javax.servlet.http.{HttpServletResponse, HttpServletRequest}
+import jakarta.servlet.http.{HttpServletResponse, HttpServletRequest}
 import java.util.concurrent.atomic.AtomicInteger
 import com.rojoma.simplearm.v2._
 import org.slf4j.{MDC, LoggerFactory}

@@ -3,6 +3,7 @@ import Dependencies._
 name := "socrata-http-common"
 
 libraryDependencies ++= Seq(
+  jakartaActivation,
   commonsCodec,
   commonsLang,
   jodaConvert,

@@ -8,13 +8,14 @@ import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 import sun.misc.Signal
 import sun.misc.SignalHandler
+
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.Semaphore
-import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
-
+import jakarta.servlet.http.{HttpServletRequest, HttpServletResponse}
 import com.rojoma.simplearm.v2._
 import com.socrata.util.logging.LazyStringLogger
 import com.typesafe.config.Config
+import org.eclipse.jetty.http.{HttpHeader, PreEncodedHttpField}
 import org.eclipse.jetty.server._
 import org.eclipse.jetty.server.handler.gzip.GzipHandler
 import org.eclipse.jetty.util.component.LifeCycle
@@ -96,16 +97,16 @@ abstract class AbstractSocrataServerJetty(handler: Handler, options: AbstractSoc
       }
     }
 
-    server.addLifeCycleListener(new LifeCycle.Listener {
-      def lifeCycleStarting(event: LifeCycle) {}
+    server.addEventListener(new LifeCycle.Listener {
+      override def lifeCycleStarting(event: LifeCycle) {}
 
-      def lifeCycleStarted(event: LifeCycle) {}
+      override def lifeCycleStarted(event: LifeCycle) {}
 
-      def lifeCycleFailure(event: LifeCycle, cause: Throwable) {}
+      override def lifeCycleFailure(event: LifeCycle, cause: Throwable) {}
 
-      def lifeCycleStopping(event: LifeCycle) {}
+      override def lifeCycleStopping(event: LifeCycle) {}
 
-      def lifeCycleStopped(event: LifeCycle) { signalled.release() }
+      override def lifeCycleStopped(event: LifeCycle) { signalled.release() }
     })
 
     var oldSIGTERM: SignalHandler = null
@@ -180,11 +181,9 @@ abstract class AbstractSocrataServerJetty(handler: Handler, options: AbstractSoc
 
   private def gzipHandler(underlying: Handler): Handler = gzipOptions match {
     case Some(opts) =>
-      val gz = new GzipHandler() {
-         override val getVaryField = new org.eclipse.jetty.http.PreEncodedHttpField(org.eclipse.jetty.http.HttpHeader.VARY, opts.varys.mkString(", "))
-      }
+      val gz = new GzipHandler()
+      gz.setVary(new PreEncodedHttpField(HttpHeader.VARY, opts.varys.mkString(", ")))
       gz.setHandler(underlying)
-      gz.setExcludedAgentPatterns(opts.excludedUserAgents.toSeq : _*)
       gz.setExcludedMimeTypes(opts.excludedMimeTypes.toSeq : _*)
       gz.setInflateBufferSize(opts.bufferSize)
       gz.setIncludedMethods("GET", "POST", "PUT", "PATCH", "QUERY")
@@ -340,9 +339,6 @@ object AbstractSocrataServerJetty {
 
   object Gzip {
     sealed abstract class Options {
-      val excludedUserAgents: Set[String]
-      def withExcludedUserAgents(uas: Set[String]): Options
-
       /** What items to send in the "Vary" header on compressed responses.
         * GzipHandler by default excludes compressing requests from IE6 when wired up using Jetty's XML config,
         * and so by default varies on User-Agent.  That is bad for caching, and we don't default to excluding
@@ -361,14 +357,12 @@ object AbstractSocrataServerJetty {
     }
 
     private case class OptionsImpl(
-      excludedUserAgents: Set[String] = Set.empty,
       varys: Set[String] = Set("Accept-Encoding"),
       excludedMimeTypes: Set[String] = Set.empty,
       bufferSize: Int = 8192,
       minGzipSize: Int = 256,
       requestHeaderSize: Int = 8192
     ) extends Options {
-      override def withExcludedUserAgents(uas: Set[String]) = copy(excludedUserAgents = uas)
       override def withVarys(vs: Set[String]) = copy(varys = vs)
       override def withMinGzipSize(s: Int) = copy(minGzipSize = s)
       override def withExcludedMimeTypes(mts: Set[String]) = copy(excludedMimeTypes = mts)

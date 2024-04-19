@@ -1,6 +1,6 @@
 package com.socrata.http.client.exceptions
 
-import javax.activation.MimeType
+import jakarta.activation.MimeType
 import java.net.{SocketTimeoutException, ConnectException}
 
 class HttpClientException(msg: String = null, cause: Throwable = null) extends Exception(msg, cause)

@@ -1,6 +1,6 @@
 package com.socrata.http.common.util
 
-import javax.activation.MimeType
+import jakarta.activation.MimeType
 import java.nio.charset.{StandardCharsets, UnsupportedCharsetException, IllegalCharsetNameException, Charset}
 import com.socrata.http.common.util.HttpUtils.{LanguageRange, CharsetRange, MediaRange}
 import java.awt.datatransfer.MimeTypeParseException

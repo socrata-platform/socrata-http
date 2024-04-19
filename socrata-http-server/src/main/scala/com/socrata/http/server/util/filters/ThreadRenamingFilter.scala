@@ -1,7 +1,7 @@
 package com.socrata.http.server.util.filters
 
 import com.socrata.http.server.{Filter, HttpResponse}
-import javax.servlet.http.HttpServletRequest
+import jakarta.servlet.http.HttpServletRequest
 
 abstract class ThreadRenamingFilter[InDown, OutUp] extends Filter[InDown, OutUp, InDown, OutUp] {
   def apply(request: InDown, service: (InDown) => OutUp): OutUp = {

@@ -1,6 +1,6 @@
 package com.socrata.http.server.util
 
-import javax.servlet.http.HttpServletRequest
+import jakarta.servlet.http.HttpServletRequest
 import org.slf4j.MDC
 
 /**

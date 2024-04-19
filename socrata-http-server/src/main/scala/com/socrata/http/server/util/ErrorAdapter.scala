@@ -1,6 +1,6 @@
 package com.socrata.http.server.util
 
-import javax.servlet.http.HttpServletResponse
+import jakarta.servlet.http.HttpServletResponse
 import com.socrata.http.server.{HttpRequest, HttpService, HttpResponse}
 
 /** An adapter to catch unexpected errors.  This goes right below the

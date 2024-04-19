@@ -5,7 +5,7 @@ name := "socrata-http-server"
 libraryDependencies ++=
   Seq(
     commonsIo,
-    javaxServlet % "provided",
+    jakartaServlet,
     jodaConvert,
     jodaTime,
     scalaReflect(scalaVersion.value),
@@ -20,9 +20,9 @@ libraryDependencies ++=
         else Seq("org.scala-lang.modules" %% "scala-parser-combinators" % "2.1.0"))
 
 // macro-paradise macros
-addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
+addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full)
 
-Compile / sourceGenerators += Def.task { genParses((Compile / sourceManaged).value, (Compile / scalaVersion).value) }
+Compile / sourceGenerators += Def.task { genParses((Compile / sourceManaged).value, (Compile / scalaVersion).value) }.taskValue
 
 def genParse(n: Int, scalaVersion: String): String = {
   val typeVars = (0 until n).map { i => ('A' + i).toChar }

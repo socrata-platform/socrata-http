@@ -1,10 +1,10 @@
 package com.socrata.http.server.util.filters
 
-import javax.servlet.http.{HttpServletRequestWrapper, HttpServletRequest}
+import jakarta.servlet.http.{HttpServletRequestWrapper, HttpServletRequest}
 import InputByteCountingFilter._
 import com.socrata.http.server.HttpRequest.AugmentedHttpServletRequest
 import io.Codec
-import javax.servlet.ServletInputStream
+import jakarta.servlet.ServletInputStream
 import java.io._
 
 import com.socrata.http.server._
@@ -76,7 +76,7 @@ object InputByteCountingFilter {
 
       def isFinished: Boolean = underlying.isFinished
       def isReady(): Boolean = underlying.isReady
-      def setReadListener(x: javax.servlet.ReadListener) = underlying.setReadListener(x)
+      def setReadListener(x: jakarta.servlet.ReadListener) = underlying.setReadListener(x)
     }
 
     def bytesRead = count

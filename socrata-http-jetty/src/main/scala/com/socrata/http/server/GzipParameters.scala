@@ -9,8 +9,7 @@ case class GzipParameters(excludeUserAgent: String => Boolean = Set.empty,
   def toOptions = SocrataServerJetty.Gzip.defaultOptions.
     withBufferSize(bufferSize).
     withMinGzipSize(minGzipSize).
-    withExcludedMimeTypes(toSet("excludeMimeTypes", excludeMimeTypes)).
-    withExcludedUserAgents(toSet("excludeUserAgent", excludeUserAgent))
+    withExcludedMimeTypes(toSet("excludeMimeTypes", excludeMimeTypes))
 
   private def toSet(name: String, f: String => Boolean): Set[String] = {
     if(f.isInstanceOf[Set[_]]) f.asInstanceOf[Set[String]]

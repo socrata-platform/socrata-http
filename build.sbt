@@ -1,4 +1,4 @@
-ThisBuild / scalaVersion := "2.12.8"
+ThisBuild / scalaVersion := "2.12.19"
 
 ThisBuild / crossScalaVersions := Seq("2.10.4", "2.11.7", scalaVersion.value)
 

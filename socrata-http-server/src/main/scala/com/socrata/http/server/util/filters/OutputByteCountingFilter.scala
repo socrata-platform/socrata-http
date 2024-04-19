@@ -1,9 +1,9 @@
 package com.socrata.http.server.util.filters
 
 import OutputByteCountingFilter._
-import javax.servlet.ServletOutputStream
+import jakarta.servlet.ServletOutputStream
 import java.io._
-import javax.servlet.http.{HttpServletResponse, HttpServletResponseWrapper}
+import jakarta.servlet.http.{HttpServletResponse, HttpServletResponseWrapper}
 import com.socrata.http.server._
 
 trait OutputByteCountingFilter extends SimpleFilter[HttpRequest, HttpResponse] {
@@ -75,7 +75,7 @@ object OutputByteCountingFilter {
       }
 
       def isReady(): Boolean = underlying.isReady
-      def setWriteListener(x: javax.servlet.WriteListener): Unit = underlying.setWriteListener(x)
+      def setWriteListener(x: jakarta.servlet.WriteListener): Unit = underlying.setWriteListener(x)
 
       def bytesWritten = count
     }

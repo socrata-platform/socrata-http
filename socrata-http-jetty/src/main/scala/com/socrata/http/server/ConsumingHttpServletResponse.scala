@@ -1,7 +1,7 @@
 package com.socrata.http.server
 
 import java.io.{InputStream, Reader, IOException}
-import javax.servlet.http.{HttpServletResponse, HttpServletRequest, HttpServletResponseWrapper}
+import jakarta.servlet.http.{HttpServletResponse, HttpServletRequest, HttpServletResponseWrapper}
 
 private class ConsumingHttpServletResponse(request: HttpServletRequest, val underlying: HttpServletResponse) extends HttpServletResponseWrapper(underlying) {
   def consume() {

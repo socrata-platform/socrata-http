@@ -10,7 +10,7 @@ import com.socrata.http.common.util.CharsetFor.UnparsableContentType
 
 import scala.collection.JavaConverters._
 import java.net.URLDecoder
-import javax.servlet.http.{HttpServletRequestWrapper, HttpServletRequest}
+import jakarta.servlet.http.{HttpServletRequestWrapper, HttpServletRequest}
 
 import com.socrata.http.common.util.{ContentNegotiation, HttpUtils, CharsetFor}
 import com.socrata.http.server.util.PreconditionParser

@@ -1,7 +1,7 @@
 package com.socrata.http.client
 
 import java.io.{InputStreamReader, Reader, InputStream}
-import javax.activation.{MimeTypeParseException, MimeType}
+import jakarta.activation.{MimeTypeParseException, MimeType}
 import java.nio.charset.{StandardCharsets, Charset}
 
 import com.rojoma.json.v3.io.{JsonReader, FusedBlockJsonEventIterator, JsonEvent}

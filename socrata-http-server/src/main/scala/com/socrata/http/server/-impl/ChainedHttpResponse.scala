@@ -1,6 +1,6 @@
 package com.socrata.http.server.`-impl`
 
-import javax.servlet.http.HttpServletResponse
+import jakarta.servlet.http.HttpServletResponse
 
 import com.socrata.http.server.HttpResponse
 

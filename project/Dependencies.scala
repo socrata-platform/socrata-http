@@ -15,9 +15,10 @@ object Dependencies {
 
   val jackson = "org.codehaus.jackson" % "jackson-mapper-asl" % "1.9.13"
 
-  val javaxServlet = "javax.servlet" % "javax.servlet-api" % "3.1.0"
+  val jakartaActivation = "jakarta.activation" % "jakarta.activation-api" % "2.1.3"
+  val jakartaServlet = "org.eclipse.jetty.toolchain" % "jetty-jakarta-servlet-api" % "5.0.2"
 
-  val jettyVersion = "9.4.24.v20191120"
+  val jettyVersion = "11.0.20"
   val jettyJmx = "org.eclipse.jetty" % "jetty-jmx" % jettyVersion
   val jettyServer = "org.eclipse.jetty" % "jetty-server" % jettyVersion
   val jettyServlet = "org.eclipse.jetty" % "jetty-servlet" % jettyVersion

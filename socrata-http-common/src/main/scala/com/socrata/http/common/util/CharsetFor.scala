@@ -2,7 +2,7 @@ package com.socrata.http.common.util
 
 import java.awt.datatransfer.MimeTypeParseException
 import java.nio.charset.{IllegalCharsetNameException, StandardCharsets, Charset}
-import javax.activation.MimeType
+import jakarta.activation.MimeType
 import scala.runtime.ScalaRunTime
 
 import StandardCharsets._

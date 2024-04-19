@@ -3,6 +3,7 @@ import Dependencies._
 name := "socrata-http-client"
 
 libraryDependencies ++= Seq(
+  jakartaServlet,
   apacheHttpClient exclude ("commons-logging", "commons-logging"),
   commonsIo,
   apacheHttpMime,

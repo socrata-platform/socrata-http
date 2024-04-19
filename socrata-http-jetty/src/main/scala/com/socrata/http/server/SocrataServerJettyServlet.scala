@@ -1,7 +1,7 @@
 package com.socrata.http.server
 
 import scala.collection.JavaConverters._
-import javax.servlet.DispatcherType
+import jakarta.servlet.DispatcherType
 import java.util.{EventListener, EnumSet}
 import org.eclipse.jetty.server.Handler
 import org.eclipse.jetty.servlet.ServletContextHandler
@@ -13,8 +13,8 @@ class SocrataServerJettyServlet(options: SocrataServerJettyServlet.Options) exte
 
 object SocrataServerJettyServlet {
   import scala.language.existentials
-  case class ServletSpec(servlet: Class[_ <: javax.servlet.Servlet], pathSpec: String)
-  case class FilterSpec(filter: Class[_ <: javax.servlet.Filter], pathSpec: String, dispatches: Set[DispatcherType])
+  case class ServletSpec(servlet: Class[_ <: jakarta.servlet.Servlet], pathSpec: String)
+  case class FilterSpec(filter: Class[_ <: jakarta.servlet.Filter], pathSpec: String, dispatches: Set[DispatcherType])
 
   abstract class Options extends AbstractSocrataServerJetty.Options {
     type OptT <: Options
