@@ -10,3 +10,5 @@ libraryDependencies ++= Seq(
   jettyServlets,
   slf4jApi
 )
+
+scalacOptions ++= Seq("-deprecation")

@@ -17,7 +17,9 @@ private class FunctionHandler(handler: HttpService) extends AbstractHandler {
       try {
         MDC.clear()
         using(new ResourceScope("request scope")) { rs =>
-          val request = new ConcreteHttpRequest(new HttpRequest.AugmentedHttpServletRequest(baseRequest), None, rs)
+          val ct = Option(baseRequest.getAttribute(classOf[ConcurrencyTracker].getName)).map(_.asInstanceOf[ConcurrencyTracker])
+
+          val request = new ConcreteHttpRequest(new HttpRequest.AugmentedHttpServletRequest(baseRequest), ct, rs)
           val response = new ConsumingHttpServletResponse(baseRequest, baseResponse)
 
           try {

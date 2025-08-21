@@ -1,5 +1,7 @@
 package com.socrata.http.server
 
+import java.util.concurrent.TimeUnit
+
 import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.http.server.HttpRequest.AugmentedHttpServletRequest
 import org.eclipse.jetty.server.handler.ErrorHandler
@@ -16,6 +18,7 @@ import com.rojoma.simplearm.v2._
 import com.socrata.util.logging.LazyStringLogger
 import com.typesafe.config.Config
 import org.eclipse.jetty.server._
+import org.eclipse.jetty.server.handler.HandlerWrapper
 import org.eclipse.jetty.server.handler.gzip.GzipHandler
 import org.eclipse.jetty.util.component.LifeCycle
 import org.eclipse.jetty.util.thread.QueuedThreadPool
@@ -87,7 +90,14 @@ abstract class AbstractSocrataServerJetty(handler: Handler, options: AbstractSoc
 
     val wrappedHandler = ((gzipHandler _) :: options.extraHandlers).foldLeft[Handler](handler) { (h, wrapper) => wrapper(h) }
     val countingHandler = new CountingHandler(wrappedHandler, onFatalException)
-    server.setHandler(countingHandler)
+    val ctSettingHandler = new HandlerWrapper {
+      setHandler(countingHandler)
+      override def handle(target: String, baseRequest: Request, request: HttpServletRequest, response: HttpServletResponse) {
+        baseRequest.setAttribute(classOf[ConcurrencyTracker].getName, concurrencyTracker)
+        _handler.handle(target, baseRequest, request, response)
+      }
+    }
+    server.setHandler(ctSettingHandler)
 
     options.errorHandler.foreach { errorHandler =>
       server.addBean(new ErrorHandler {
@@ -186,7 +196,7 @@ abstract class AbstractSocrataServerJetty(handler: Handler, options: AbstractSoc
         // deregisterWaitMS timeout should be large enough to prevent this
         // from happening.
         log.info("Waiting for all pending requests to terminate")
-        awaitTermination(countingHandler.currentlyInProgress)
+        awaitTermination(countingHandler.currentlyInProgress _)
       } finally {
         log.info("Stopping Jetty")
         server.stop()
@@ -333,7 +343,7 @@ object AbstractSocrataServerJetty {
   }
 
   private case class OptionsImpl(
-    onStop: () => Unit = noop,
+    onStop: () => Unit = noop _,
     port: Int = 2401,
     broker: ServerBroker = ServerBroker.Noop,
     deregisterWait: FiniteDuration = 5.seconds,
@@ -451,7 +461,7 @@ object AbstractSocrataServerJetty {
     def apply(config: Config): Options = {
       OptionsImpl(config.getInt("min-threads"),
                   config.getInt("max-threads"),
-                  config.getMilliseconds("idle-timeout").toInt,
+                  config.getDuration("idle-timeout", TimeUnit.MILLISECONDS).toInt,
                   config.getInt("queue-length"))
     }
   }
