@@ -22,13 +22,15 @@ import util.RequestId.{RequestId, getFromRequest}
 trait HttpRequest {
   def servletRequest: HttpRequest.AugmentedHttpServletRequest
   def resourceScope: ResourceScope
+  def concurrencyTracker: Option[ConcurrencyTracker]
 }
 
-class ConcreteHttpRequest(val servletRequest: HttpRequest.AugmentedHttpServletRequest, val resourceScope: ResourceScope) extends HttpRequest
+class ConcreteHttpRequest(val servletRequest: HttpRequest.AugmentedHttpServletRequest, val concurrencyTracker: Option[ConcurrencyTracker], val resourceScope: ResourceScope) extends HttpRequest
 
 class WrapperHttpRequest(val underlying: HttpRequest) extends HttpRequest {
   def servletRequest = underlying.servletRequest
   def resourceScope = underlying.resourceScope
+  def concurrencyTracker = underlying.concurrencyTracker
 }
 
 object HttpRequest {

@@ -32,6 +32,8 @@ abstract class AbstractSocrataServerJetty(handler: Handler, options: AbstractSoc
 
   val log = LazyStringLogger[this.type]
 
+  val concurrencyTracker = new ConcurrencyTracker
+
   /**
    * Runs the servlet container.  Blocks until the container is stopped.
    */
@@ -41,7 +43,32 @@ abstract class AbstractSocrataServerJetty(handler: Handler, options: AbstractSoc
     val qtp = new QueuedThreadPool(options.poolOptions.maxThreads,
                                    options.poolOptions.minThreads,
                                    options.poolOptions.idleTimeoutMs,
-                                   q)
+                                   q) {
+      override def execute(r: Runnable): Unit = {
+        val start = System.nanoTime()
+
+        concurrencyTracker.addSubmission()
+        try {
+          super.execute(
+            new Runnable {
+              override def run() {
+                val end = System.nanoTime()
+                if(end - start > 1e8) {
+                  log.warn("Acquiring a thread to handle a request took a long time")
+                }
+                concurrencyTracker.process {
+                  r.run()
+                }
+              }
+            }
+          )
+        } catch {
+          case e: Throwable =>
+            concurrencyTracker.rejectSubmission()
+            throw e
+        }
+      }
+    }
     val server = new Server(qtp)
     val httpConfiguration = new HttpConfiguration
     httpConfiguration.setRequestHeaderSize(options.requestHeaderSize)
@@ -66,7 +93,7 @@ abstract class AbstractSocrataServerJetty(handler: Handler, options: AbstractSoc
       server.addBean(new ErrorHandler {
         override def handle(target: String, baseRequest: Request, request: HttpServletRequest, response: HttpServletResponse): Unit = {
           using(new ResourceScope("error handler")) { rs =>
-            val req = new ConcreteHttpRequest(new AugmentedHttpServletRequest(request), rs)
+            val req = new ConcreteHttpRequest(new AugmentedHttpServletRequest(request), Some(concurrencyTracker), rs)
             baseRequest.setHandled(true)
             val resp = new ConsumingHttpServletResponse(request, response)
             try { errorHandler(req)(resp) }
