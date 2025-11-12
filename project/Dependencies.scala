@@ -5,7 +5,7 @@ object Dependencies {
   val apacheHttpClient = "org.apache.httpcomponents" % "httpclient" % apacheHttpComponentsVersion exclude ("commons-logging", "commons-logging")
   val apacheHttpMime = "org.apache.httpcomponents" % "httpmime" % apacheHttpComponentsVersion exclude ("commons-logging", "commons-logging")
 
-  val commonsLang = "commons-lang" % "commons-lang" % "2.4"
+  val commonsLang = "org.apache.commons" % "commons-lang3" % "3.19.0"
 
   val commonsCodec = "commons-codec" % "commons-codec" % "1.8"
 

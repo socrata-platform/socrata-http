@@ -1,5 +1,7 @@
 package com.socrata.http.server
 
+import java.util.concurrent.TimeUnit
+
 import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.http.server.HttpRequest.AugmentedHttpServletRequest
 import org.eclipse.jetty.server.handler.ErrorHandler
@@ -17,6 +19,7 @@ import com.socrata.util.logging.LazyStringLogger
 import com.typesafe.config.Config
 import org.eclipse.jetty.http.{HttpHeader, PreEncodedHttpField}
 import org.eclipse.jetty.server._
+import org.eclipse.jetty.server.handler.HandlerWrapper
 import org.eclipse.jetty.server.handler.gzip.GzipHandler
 import org.eclipse.jetty.util.component.LifeCycle
 import org.eclipse.jetty.util.thread.QueuedThreadPool
@@ -33,6 +36,8 @@ abstract class AbstractSocrataServerJetty(handler: Handler, options: AbstractSoc
 
   val log = LazyStringLogger[this.type]
 
+  val concurrencyTracker = new ConcurrencyTracker
+
   /**
    * Runs the servlet container.  Blocks until the container is stopped.
    */
@@ -42,7 +47,32 @@ abstract class AbstractSocrataServerJetty(handler: Handler, options: AbstractSoc
     val qtp = new QueuedThreadPool(options.poolOptions.maxThreads,
                                    options.poolOptions.minThreads,
                                    options.poolOptions.idleTimeoutMs,
-                                   q)
+                                   q) {
+      override def execute(r: Runnable): Unit = {
+        val start = System.nanoTime()
+
+        concurrencyTracker.addSubmission()
+        try {
+          super.execute(
+            new Runnable {
+              override def run() {
+                val end = System.nanoTime()
+                if(end - start > 1e8) {
+                  log.warn("Acquiring a thread to handle a request took a long time")
+                }
+                concurrencyTracker.process {
+                  r.run()
+                }
+              }
+            }
+          )
+        } catch {
+          case e: Throwable =>
+            concurrencyTracker.rejectSubmission()
+            throw e
+        }
+      }
+    }
     val server = new Server(qtp)
     val httpConfiguration = new HttpConfiguration
     httpConfiguration.setRequestHeaderSize(options.requestHeaderSize)
@@ -61,13 +91,20 @@ abstract class AbstractSocrataServerJetty(handler: Handler, options: AbstractSoc
 
     val wrappedHandler = ((gzipHandler _) :: options.extraHandlers).foldLeft[Handler](handler) { (h, wrapper) => wrapper(h) }
     val countingHandler = new CountingHandler(wrappedHandler, onFatalException)
-    server.setHandler(countingHandler)
+    val ctSettingHandler = new HandlerWrapper {
+      setHandler(countingHandler)
+      override def handle(target: String, baseRequest: Request, request: HttpServletRequest, response: HttpServletResponse) {
+        baseRequest.setAttribute(classOf[ConcurrencyTracker].getName, concurrencyTracker)
+        _handler.handle(target, baseRequest, request, response)
+      }
+    }
+    server.setHandler(ctSettingHandler)
 
     options.errorHandler.foreach { errorHandler =>
       server.addBean(new ErrorHandler {
         override def handle(target: String, baseRequest: Request, request: HttpServletRequest, response: HttpServletResponse): Unit = {
           using(new ResourceScope("error handler")) { rs =>
-            val req = new ConcreteHttpRequest(new AugmentedHttpServletRequest(request), rs)
+            val req = new ConcreteHttpRequest(new AugmentedHttpServletRequest(request), Some(concurrencyTracker), rs)
             baseRequest.setHandled(true)
             val resp = new ConsumingHttpServletResponse(request, response)
             try { errorHandler(req)(resp) }
@@ -160,7 +197,7 @@ abstract class AbstractSocrataServerJetty(handler: Handler, options: AbstractSoc
         // deregisterWaitMS timeout should be large enough to prevent this
         // from happening.
         log.info("Waiting for all pending requests to terminate")
-        awaitTermination(countingHandler.currentlyInProgress)
+        awaitTermination(countingHandler.currentlyInProgress _)
       } finally {
         log.info("Stopping Jetty")
         server.stop()
@@ -305,7 +342,7 @@ object AbstractSocrataServerJetty {
   }
 
   private case class OptionsImpl(
-    onStop: () => Unit = noop,
+    onStop: () => Unit = noop _,
     port: Int = 2401,
     broker: ServerBroker = ServerBroker.Noop,
     deregisterWait: FiniteDuration = 5.seconds,
@@ -418,7 +455,7 @@ object AbstractSocrataServerJetty {
     def apply(config: Config): Options = {
       OptionsImpl(config.getInt("min-threads"),
                   config.getInt("max-threads"),
-                  config.getMilliseconds("idle-timeout").toInt,
+                  config.getDuration("idle-timeout", TimeUnit.MILLISECONDS).toInt,
                   config.getInt("queue-length"))
     }
   }

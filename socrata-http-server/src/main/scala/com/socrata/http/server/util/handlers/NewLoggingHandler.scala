@@ -28,8 +28,13 @@ class NewLoggingHandler(underlying: HttpService, options: LoggingOptions) extend
     val inspectableResp = new InspectableHttpServletResponse(resp)
 
     if(log.isInfoEnabled) {
-      val reqStr = req.method + " " + req.requestPathStr + req.queryStr.fold("") { q =>
-        "?" + q
+      val reqStr = new StringBuilder
+      reqStr.append(req.method).append(" ").append(req.requestPathStr)
+      for(q <- req.queryStr) {
+        reqStr.append("?").append(q)
+      }
+      for(ct <- req.concurrencyTracker) {
+        reqStr.append(" ").append(ct.state)
       }
       val headers = options.logRequestHeaders.flatMap { hdr =>
         val values = req.headers(hdr).toSeq
@@ -42,9 +47,13 @@ class NewLoggingHandler(underlying: HttpService, options: LoggingOptions) extend
 
     override def close() {
       val end = System.nanoTime()
-      val extra =
-        if(inspectableResp.status >= 400) " ERROR " + inspectableResp.status
-        else ""
+      val extra = new StringBuilder
+      for(ct <- req.concurrencyTracker) {
+        extra.append(" ").append(ct.state)
+      }
+      if(inspectableResp.status >= 400) {
+        extra.append(" ERROR ").append(inspectableResp.status)
+      }
       log.info("<<< {}ms{}", (end - start)/1000000, extra)
 
       val headers = options.logResponseHeaders.flatMap { hdr =>
