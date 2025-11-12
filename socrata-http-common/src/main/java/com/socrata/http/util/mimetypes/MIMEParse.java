@@ -9,8 +9,8 @@ import java.util.List;
 import java.util.Map;
 
 
-import org.apache.commons.lang.StringUtils;
-import org.apache.commons.lang.math.NumberUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.math.NumberUtils;
 
 /**
  * MIME-Type Parser
@@ -253,8 +253,7 @@ public final class MIMEParse
 
         FitnessAndQuality lastOne = weightedMatches
                 .get(weightedMatches.size() - 1);
-        return NumberUtils.compare(lastOne.quality, 0) != 0 ? lastOne.mimeType
-                : "";
+        return java.lang.Float.compare(lastOne.quality, 0) != 0 ? lastOne.mimeType : "";
     }
 
     // hidden
