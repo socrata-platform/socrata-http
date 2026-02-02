@@ -104,6 +104,22 @@ class HttpClientHttpClient(executor: Executor, options: HttpClientHttpClient.Opt
     }
   }
 
+  private class SafeClose(underlying: InputStream) extends InputStream {
+    override def read(): Int = underlying.read()
+    override def read(buf: Array[Byte]): Int = underlying.read(buf)
+    override def read(buf: Array[Byte], off: Int, len: Int): Int = underlying.read(buf, off, len)
+
+    override def available() = underlying.available()
+    override def skip(n: Long) = underlying.skip(n)
+    override def markSupported = underlying.markSupported
+    override def mark(n: Int) = underlying.mark(n)
+    override def reset() = underlying.reset()
+
+    override def close(): Unit =
+      try { underlying.close() }
+      catch { case _ : IOException => () }
+  }
+
   private def send[A](req: HttpUriRequest, timeout: Option[Int], pingTarget: Option[LivenessCheckTarget]): RawResponse with Closeable = {
     val LivenessCheck = 0
     val FullTimeout = 1
@@ -156,7 +172,7 @@ class HttpClientHttpClient(executor: Executor, options: HttpClientHttpClient.Opt
         }
 
         val entity = response.getEntity
-        val content = if(entity != null) scope.open(entity.getContent()) else EmptyInputStream
+        val content = if(entity != null) scope.open(new SafeClose(entity.getContent())) else EmptyInputStream
         new RawResponse with Closeable {
           var exceptionWhileReading = false
           val body = CatchingInputStream(new BufferedInputStream(content)) {
