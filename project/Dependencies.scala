@@ -24,6 +24,10 @@ object Dependencies {
   val jettyServlet = "org.eclipse.jetty" % "jetty-servlet" % jettyVersion
   val jettyServlets = "org.eclipse.jetty" % "jetty-servlets" % jettyVersion
 
+  val opentelemetryVersion = "1.60.1"
+  val opentelemetry = "io.opentelemetry" % "opentelemetry-api" % opentelemetryVersion
+  val opentelemetryIncubator = "io.opentelemetry" % "opentelemetry-sdk-extension-incubator" % (opentelemetryVersion + "-alpha")
+
   val rojomaJsonV3 = "com.rojoma" %% "rojoma-json-v3" % "[3.2.0, 4.0.0)"
   val rojomaJsonJackson = "com.rojoma" %% "rojoma-json-v3-jackson" % "[1.0.0, 2.0.0)"
 
