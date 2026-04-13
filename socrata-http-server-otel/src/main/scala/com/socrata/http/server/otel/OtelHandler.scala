@@ -54,7 +54,7 @@ class OtelHandler private (
     span.setAttribute(keys.httpRequestMethod, req.method)
     span.setAttribute(keys.urlFull, req.servletRequest.getRequestURL.toString)
     span.setAttribute(keys.urlScheme, req.servletRequest.getScheme)
-    span.setAttribute(keys.urlQuery, req.requestPathStr)
+    span.setAttribute(keys.urlPath, req.requestPathStr)
     req.queryStr.foreach(span.setAttribute(keys.urlQuery, _))
   }
 
