@@ -4,7 +4,7 @@ import java.lang.reflect.UndeclaredThrowableException
 import java.io._
 import java.net._
 import java.nio.charset.StandardCharsets
-import java.util.concurrent.Executor
+import java.util.concurrent.{Executor, Semaphore, TimeUnit}
 import javax.net.ssl._
 
 import com.rojoma.simplearm.v2._
@@ -12,7 +12,7 @@ import org.apache.commons.io.input.ReaderInputStream
 import org.apache.http.HttpHost
 import org.apache.http.client.methods._
 import org.apache.http.config.{RegistryBuilder, Registry}
-import org.apache.http.conn.ConnectTimeoutException
+import org.apache.http.conn.{ConnectTimeoutException, HttpClientConnectionManager}
 import org.apache.http.conn.socket.{PlainConnectionSocketFactory, ConnectionSocketFactory}
 import org.apache.http.entity._
 import org.apache.http.impl.client.{DefaultConnectionKeepAliveStrategy, HttpClients}
@@ -58,13 +58,48 @@ class HttpClientHttpClient(executor: Executor, options: HttpClientHttpClient.Opt
         }
     }
 
-  private[this] val connectionManager = locally {
-    val connManager = new PoolingHttpClientConnectionManager(socketFactoryRegistry,
-                                                             dnsResolver)
-    connManager.setDefaultMaxPerRoute(Int.MaxValue)
-    connManager.setMaxTotal(Int.MaxValue)
-    connManager
+  private val resourceScope = new ResourceScope
+
+  private class IdleManager(connMgr: HttpClientConnectionManager) extends Thread with AutoCloseable {
+    setName("HTTP client idle manager")
+    setDaemon(true)
+
+    private val shutdown = new Semaphore(0)
+
+    override def run() {
+      // Every two seconds, tear down any pooled connections that have
+      // been waiting in the pool for more than five seconds.
+      var delay = 2L
+      while(!shutdown.tryAcquire(delay, TimeUnit.SECONDS)) {
+        try {
+          connMgr.closeIdleConnections(5, TimeUnit.SECONDS)
+          delay = 2
+        } catch {
+          case e: Exception =>
+            log.warn("Unexpected exception while trying to shut down idle connections", e)
+            delay *= 2
+        }
+      }
+    }
+
+    def close(): Unit = {
+      shutdown.release()
+      join()
+    }
   }
+
+  @volatile private[this] var initialized = false
+  private val log = org.slf4j.LoggerFactory.getLogger(classOf[HttpClientHttpClient])
+  private val timeoutManager = resourceScope.open(new TimeoutManager(executor))
+
+  private val connectionManager =
+    resourceScope.open(
+      new PoolingHttpClientConnectionManager(socketFactoryRegistry, dnsResolver)
+    )
+  connectionManager.setDefaultMaxPerRoute(Int.MaxValue)
+  connectionManager.setMaxTotal(Int.MaxValue)
+
+  private val idleManager = resourceScope.open(new IdleManager(connectionManager))
 
   private[this] val httpclient = locally {
     val builder =
@@ -82,14 +117,11 @@ class HttpClientHttpClient(executor: Executor, options: HttpClientHttpClient.Opt
     builder.build()
   }
 
-  @volatile private[this] var initialized = false
-  private val log = org.slf4j.LoggerFactory.getLogger(classOf[HttpClientHttpClient])
-  private val timeoutManager = new TimeoutManager(executor)
-
   private def init() {
     def reallyInit() = synchronized {
       if(!initialized) {
         timeoutManager.start()
+        idleManager.start()
         initialized = true
       }
     }
@@ -97,11 +129,7 @@ class HttpClientHttpClient(executor: Executor, options: HttpClientHttpClient.Opt
   }
 
   def close() {
-    try {
-      connectionManager.shutdown()
-    } finally {
-      timeoutManager.close()
-    }
+    resourceScope.close()
   }
 
   private class SafeClose(underlying: InputStream) extends InputStream {
