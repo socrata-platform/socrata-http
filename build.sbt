@@ -31,4 +31,7 @@ lazy val socrataHttpClientOtel = (project in file("socrata-http-client-otel")).
 lazy val socrataHttpServerOtel = (project in file("socrata-http-server-otel")).
   dependsOn(socrataHttpServer)
 
+lazy val socrataHttpServerOpenApi = (project in file("socrata-http-server-openapi")).
+  dependsOn(socrataHttpServer)
+
 publish / skip := true
