@@ -72,7 +72,7 @@ class Service(queryResource: QueryResource,
               cacheStateResource: CacheStateResource,
               versionResource: VersionResource) extends HttpService {
 
-  val routingTable = OpenApi.serve("/openapi.json", Info("Query Coordinator", "1.0"))(
+  val routingTable = OpenApi.serve("/openapi.json", Info("Route Table Service", "1.0"))(
     Routes(
       Route("/{String}/+", (_: Any, _: Any) => queryResource),
       Route("/{String}", (_: Any) => queryResource),
@@ -100,32 +100,6 @@ Route("/{String}", (_: Any) => queryResource).documented(
   Doc(get = Some(Operation("Run a query")), pathParams = List("dataset")))
 ```
 
-### Alternative: `OpenApi.wrap`
-
-`serve` adds the spec to the route tree, so it competes with your other routes (see
-[route ordering](#limitations-and-notes)).  `wrap` instead sits in front of an existing
-`HttpService`: requests for the spec path are answered immediately, and everything else is passed to
-the wrapped service untouched.
-
-```scala
-val routes = Routes(/* ... as above, without OpenApi.serve ... */)
-
-val service: HttpService = req =>
-  routes(req.requestPath) match {
-    case Some(resource) => resource(req)
-    case None => NotFound
-  }
-
-val withSpec: HttpService =
-  OpenApi.wrap("/openapi.json", Info("Query Coordinator", "1.0"), routes)(service)
-// pass `withSpec` to your Jetty server instead of `service`
-```
-
-Because the spec path is checked before the service runs, catch-all routes like `/{String}` and
-`/{String}/+` can never shadow it, whatever order routes are merged in.  The cost is that you pass the
-routes twice: once to your dispatch code and once to `wrap` for generating the document.  `wrap` cannot
-extract the routes from an arbitrary `HttpService`, since a service is an opaque function.
-
 ### What is derived and what you declare
 
 | Derived automatically | Declared with `.documented(Doc(...))` |
@@ -152,15 +126,8 @@ imperatively, so there is nothing to inspect.
   but the generated document has no `components` section.  Define the schema yourself or use inline
   schemas (`Schema.obj`, `Schema.array`, `Schema.raw`) instead.
 * **Format.**  Output is OpenAPI 3.0.3 JSON only; there is no YAML.
-* **Hand-attached docs can drift** from the actual handler behaviour, since they are declared separately.
 * **Routes must be built with the `Route` macros** (or `PathTreeBuilder`).  Hand-built `PathTree`s
   carry no path pattern and are ignored by the generator.
 * **Docs apply to the whole tree they are attached to.**  `.documented(doc)` on a merged `Routes(...)`
   tree attaches `doc` to every route in it, so attach it to a single `Route(...)`.
 * **Spec path.**  It must be a literal path (no `{...}` parameters or flex markers) and non-empty.
-* **Route ordering (`serve` only).**  `serve` merges the spec route into the tree last, so it beats
-  catch-alls such as `/{String}` and `/{String}/+` in the tree it is given.  The router resolves
-  same-depth conflicts in favour of the route registered last, though, so a catch-all merged *after*
-  `serve(...)` will shadow a single-segment spec path like `/openapi.json`.  Call `serve` on the
-  complete tree and merge nothing after it, use a multi-segment spec path (e.g. `/docs/openapi.json`),
-  or use `wrap`, which has no ordering dependence.
