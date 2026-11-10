@@ -119,11 +119,16 @@ object PathTreeBuilderImpl {
 
     val uTree = TypeTree(weakTypeOf[U])
 
+    val pathSpecString = pathSpec.tree match {
+      case Literal(Constant(s: String)) => s
+      case other => c.abort(other.pos, "The `pathSpec' argument must be a string literal")
+    }
+
     val fName = newTermName(c.fresh("f"))
+    val targetObjectName = newTermName(c.fresh("target"))
     val fTree = locally {
       val argCount = types.length
       if(argCount == 0) {
-        val targetObjectName = newTermName(c.fresh("target"))
         List(
           q"val $targetObjectName : $uTree = $targetObject",
           q"val $fName: Function0[$uTree] = () => $targetObjectName")
@@ -140,7 +145,12 @@ object PathTreeBuilderImpl {
       val itName = newTermName(c.fresh("id"))
       val args = types.map { t => q"$itName.next().asInstanceOf[$t]" }
       val paramType = tq"_root_.scala.collection.immutable.List[_root_.scala.Any]"
-      q"val $typeifyName: $paramType => $uTree = { ($ssName: $paramType) => val $itName = $ssName.iterator; $fName(..$args) }"
+      val targetRef = if(types.isEmpty) q"$targetObjectName" else q"$fName"
+      q"""val $typeifyName: $paramType => $uTree =
+        new _root_.com.socrata.http.server.routing.RouteFunction[$uTree](
+          $pathSpecString,
+          $targetRef,
+          { ($ssName: $paramType) => val $itName = $ssName.iterator; $fName(..$args) })"""
     }
 
     val terminus = newTermName(c.fresh("terminus"))

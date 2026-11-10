@@ -10,3 +10,139 @@ There is an old example at [TeaService](https://github.com/socrata/socrata-httpa
 
 * Zookeeper-based service discovery and registration
 * Graceful termination of requests at exit
+* Optional OpenAPI spec generation from your routes (see below)
+
+## OpenAPI spec generation
+
+The optional `socrata-http-server-openapi` module generates an OpenAPI 3.0.3 document from your
+route tree and can serve it from a path you choose.  It depends only on `socrata-http-server`, so
+services that don't use it are unaffected.
+
+### Setup
+
+Add the module to your build:
+
+```scala
+libraryDependencies += "com.socrata" %% "socrata-http-server-openapi" % "<version>"
+```
+
+Then document your routes and (optionally) serve the spec:
+
+```scala
+import com.socrata.http.server.openapi._
+import com.socrata.http.server.openapi.OpenApi.RouteDocs   // adds .documented(...)
+import com.socrata.http.server.routing.SimpleRouteContext._
+
+val routes = Routes(
+  // A Resource with no path params: its HTTP methods are discovered automatically.
+  Route("/v1/widgets", widgetsResource),
+
+  // Routes with path params, or whose target isn't a Resource, need a Doc to say what they do.
+  Route("/v1/widgets/{Int}", widgetById).documented(
+    Doc(
+      get = Some(Operation(
+        summary = Some("Get a widget"),
+        parameters = List(Parameter("expand", schema = Schema.boolean)),
+        responses = Map(
+          200 -> Response.json("The widget", Schema.ref("Widget")),
+          404 -> Response("No such widget")))),
+      pathParams = List("id")))   // names for the path params, in order; defaults to param1, param2, ...
+)
+
+// Serve the spec.  The path is an ordinary runtime string, so it can come from configuration.
+val withSpec = OpenApi.serve(config.specPath, Info("My Service", "1.0"))(routes)
+```
+
+Dispatch on `withSpec` exactly as you would on `routes`.  `OpenApi.serve` is the only thing that adds
+the endpoint, so **to leave the spec out, don't call it** and use `routes` directly.  The served
+document describes `routes` only; it does not list the spec endpoint itself.
+
+#### YAML
+
+To also serve the spec as YAML, pass `yamlPath`.  It is served alongside the JSON, from the same
+generated document, with content type `application/yaml`:
+
+```scala
+val withSpec = OpenApi.serve("/openapi.json", Info("My Service", "1.0"),
+                             yamlPath = Some("/openapi.yaml"))(routes)
+```
+
+`OpenApi.wrap` takes the same `yamlPath` argument.  Leave it out (the default) and only the JSON
+endpoint exists.  The YAML path must be a literal path and must differ from the JSON path.  Both
+paths are ordinary runtime strings, so they can come from configuration.  To get the YAML text
+without serving it, use `OpenApi.generateYaml(routes, Info(...))`.
+
+If you want the JSON without serving it (to write it to a file in a build step, say), use
+`OpenApi.generate(routes, Info(...), servers = Seq(Server("https://example.com")))`, which returns a
+rojoma-json `JObject`.
+
+### Example: a service with a routing table
+
+Most services keep their route tree in a field and dispatch on it in `apply`.  Wrap the whole
+`Routes(...)` in `OpenApi.serve` and leave `apply` alone:
+
+```scala
+class Service(queryResource: QueryResource,
+              newQueryResource: NewQueryResource,
+              cacheStateResource: CacheStateResource,
+              versionResource: VersionResource) extends HttpService {
+
+  val routingTable = OpenApi.serve("/openapi.json", Info("Route Table Service", "1.0"))(
+    Routes(
+      Route("/{String}/+", (_: Any, _: Any) => queryResource),
+      Route("/{String}", (_: Any) => queryResource),
+      Route("/new-query", newQueryResource),
+      Route("/cache-state", cacheStateResource),
+      Route("/cache-state/prime", cacheStateResource.Prime),
+      Route("/version", versionResource)
+    )
+  )
+
+  def apply(req: HttpRequest): HttpResponse =
+    routingTable(req.requestPath) match {
+      case Some(resource) => resource(req)
+      case None => NotFound
+    }
+}
+```
+
+Here `/new-query`, `/cache-state`, `/cache-state/prime` and `/version` appear in the spec with their
+methods taken from the resources.  The two catch-all `/{String}` routes do not, because their targets
+take path parameters.  To include them, document them:
+
+```scala
+Route("/{String}", (_: Any) => queryResource).documented(
+  Doc(get = Some(Operation("Run a query")), pathParams = List("dataset")))
+```
+
+### What is derived and what you declare
+
+| Derived automatically | Declared with `.documented(Doc(...))` |
+|---|---|
+| Paths | Summaries, descriptions, tags, `operationId`, `deprecated` |
+| Path parameter types (`{Int}` becomes an integer, `{Long}` a 64-bit integer, `{Boolean}` a boolean, others strings) | Path parameter names |
+| HTTP methods, for routes with no path parameters whose target is a `Resource` (via `allowedMethods`) | Query/header parameters |
+| | Request bodies and responses |
+
+Request bodies, query parameters and responses are not derived because handlers are plain
+`HttpRequest => HttpResponse` functions and parse their inputs and build their outputs
+imperatively, so there is nothing to inspect.
+
+### Limitations and notes
+
+* **Omitted routes.**  A route is only included if its methods can be determined: either its target
+  is a `Resource` and it has no path parameters, or a `Doc` supplies the methods.  Anything else,
+  such as a parameterised route with no `Doc`, a route to a plain function, or a `Directory`
+  redirect, is silently left out.  (For parameterised routes the target is a function that builds
+  the service from the parsed parameters, which can't be inspected without calling it.)
+* **Flex matches.**  A flex route such as `/files/+` is emitted as `/files/{rest}`.  OpenAPI has no
+  way to express a multi-segment parameter, so this is an approximation.
+* **No schema registry.**  `Schema.ref("Widget")` produces a `$ref` to `#/components/schemas/Widget`,
+  but the generated document has no `components` section.  Define the schema yourself or use inline
+  schemas (`Schema.obj`, `Schema.array`, `Schema.raw`) instead.
+* **Version.**  Output is OpenAPI 3.0.3.
+* **Routes must be built with the `Route` macros** (or `PathTreeBuilder`).  Hand-built `PathTree`s
+  carry no path pattern and are ignored by the generator.
+* **Docs apply to the whole tree they are attached to.**  `.documented(doc)` on a merged `Routes(...)`
+  tree attaches `doc` to every route in it, so attach it to a single `Route(...)`.
+* **Spec path.**  It must be a literal path (no `{...}` parameters or flex markers) and non-empty.

@@ -14,6 +14,21 @@ sealed trait PathTree[+R] {
 
   def merge[R2 >: R](that: PathTree[R2]): PathTree[R2]
 
+  /** Applies `f` to every terminal value in the tree, preserving its shape. */
+  def mapLeaves[R2](f: R => R2): PathTree[R2]
+
+  /** All terminal values in the tree, in no particular order. */
+  def leaves: Iterator[R]
+
+  /** Attaches opt-in metadata to every route in this tree that was created by the
+    * `Route` macros.  Leaves not created by those macros are left untouched.
+    */
+  def withAttribute(attribute: Any): PathTree[R] =
+    mapLeaves[Any] {
+      case rf: RouteFunction[_] => rf.withAttribute(attribute)
+      case other => other
+    }.asInstanceOf[PathTree[R]]
+
   def accept(path: List[String]): Option[(List[Any], R)] = {
     class Acceptor {
       private[this] class State(val builtSoFarRev: List[Any], val nextState: PathTree[R])
@@ -136,6 +151,12 @@ object PathTree {
 }
 
 final case class LiteralOnlyPathTree[+R](branches: Map[String, PathTree[R]], acceptFix: Option[R], acceptFlex: Option[R]) extends PathTree[R] {
+  def mapLeaves[R2](f: R => R2): PathTree[R2] =
+    new LiteralOnlyPathTree(branches.map { case (k, v) => k -> v.mapLeaves(f) }, acceptFix.map(f), acceptFlex.map(f))
+
+  def leaves: Iterator[R] =
+    acceptFix.iterator ++ acceptFlex.iterator ++ branches.valuesIterator.flatMap(_.leaves)
+
   def check(pathComponent: String): Vector[Result[R]] =
     branches.get(pathComponent) match {
       case None => Vector.empty
@@ -161,6 +182,12 @@ final case class LiteralOnlyPathTree[+R](branches: Map[String, PathTree[R]], acc
 }
 
 final case class MatchingPathTree[+R](branches: List[(Matcher, PathTree[R])], acceptFix: Option[R], acceptFlex: Option[R]) extends PathTree[R] {
+  def mapLeaves[R2](f: R => R2): PathTree[R2] =
+    new MatchingPathTree(branches.map { case (m, v) => (m, v.mapLeaves(f)) }, acceptFix.map(f), acceptFlex.map(f))
+
+  def leaves: Iterator[R] =
+    acceptFix.iterator ++ acceptFlex.iterator ++ branches.iterator.flatMap(_._2.leaves)
+
   def check(pathComponent: String): Vector[Result[R]] = {
     val result = Vector.newBuilder[Result[R]]
     for((m, child) <- branches) {

@@ -47,6 +47,8 @@ object Dependencies {
   val slf4jApi = "org.slf4j" % "slf4j-api" % slf4jVersion
   val slf4jSimple = "org.slf4j" % "slf4j-simple" % slf4jVersion
 
+  val snakeYaml = "org.yaml" % "snakeyaml" % "1.33"
+
   val socrataUtils = "com.socrata" %% "socrata-utils" % "0.11.0"
   val socrataThirdpartyUtils = "com.socrata" %% "socrata-thirdparty-utils" % "5.0.0"
 
