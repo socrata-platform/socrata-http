@@ -120,4 +120,53 @@ class OpenApiTest extends FunSuite with MustMatchers {
     an [IllegalArgumentException] must be thrownBy OpenApi.wrap("/{String}", apiInfo, catchAlls)(_ => _ => ())
     an [IllegalArgumentException] must be thrownBy OpenApi.serve("/docs/+", apiInfo)(catchAlls)
   }
+
+  test("generateYaml is the YAML rendering of the generated document") {
+    val routes = Route("/v1/widgets", widgets)
+    OpenApi.generateYaml(routes, apiInfo) must equal (Yaml.render(OpenApi.generate(routes, apiInfo)))
+  }
+
+  test("serve with a yamlPath adds a second route; without it there is none") {
+    val both = OpenApi.serve("/openapi.json", apiInfo, yamlPath = Some("/openapi.yaml"))(catchAlls)
+    (both(List("openapi.json")).get eq oneSvc) must be (false)
+    (both(List("openapi.yaml")).get eq oneSvc) must be (false)
+    both(List("openapi.json")).get must not be theSameInstanceAs (both(List("openapi.yaml")).get)
+
+    val jsonOnly = OpenApi.serve("/openapi.json", apiInfo)(catchAlls)
+    (jsonOnly(List("openapi.yaml")).get eq oneSvc) must be (true)
+  }
+
+  test("the YAML path must differ from the JSON path, and be literal") {
+    an [IllegalArgumentException] must be thrownBy OpenApi.serve("/openapi", apiInfo, yamlPath = Some("/openapi"))(catchAlls)
+    an [IllegalArgumentException] must be thrownBy OpenApi.wrap("/openapi", apiInfo, catchAlls, yamlPath = Some("/openapi"))(_ => _ => ())
+    an [IllegalArgumentException] must be thrownBy OpenApi.wrap("/openapi.json", apiInfo, catchAlls, yamlPath = Some("/{String}"))(_ => _ => ())
+  }
+
+  test("wrap answers both spec paths itself and passes everything else through") {
+    var called = List.empty[String]
+    val underlying: HttpService = { req =>
+      called ::= req.servletRequest.getRequestURI
+      _ => ()
+    }
+    val svc = OpenApi.wrap("/openapi.json", apiInfo, catchAlls, yamlPath = Some("/openapi.yaml"))(underlying)
+
+    svc(requestFor("/openapi.json"))
+    svc(requestFor("/openapi.yaml"))
+    called must equal (Nil)
+    svc(requestFor("/openapi.yml"))
+    called must equal (List("/openapi.yml"))
+  }
+
+  test("the generated document round-trips through a YAML parser") {
+    val d: Doc = Doc(post = Some(Operation(
+      summary = Some("create: a \"widget\""),
+      parameters = List(Parameter("limit", schema = Schema.integer, description = Some("max: 10 # items"))),
+      requestBody = Some(RequestBody(schema = Schema.ref("Widget"))),
+      responses = Map(201 -> Response.json("created", Schema.ref("Widget")), 400 -> Response("bad\nrequest")))))
+    val routes = Routes(Route("/v1/widgets", widgets).documented(d), Route("/v1/widgets/{Int}", widget).documented(Doc(get = Some(Operation("get")), pathParams = List("id"))))
+    val jsonDoc = OpenApi.generate(routes, apiInfo, Seq(Server("https://example.com", Some("prod: main"))))
+    val yaml = OpenApi.generateYaml(routes, apiInfo, Seq(Server("https://example.com", Some("prod: main"))))
+
+    YamlParsing.parse(yaml) must equal (jsonDoc)
+  }
 }

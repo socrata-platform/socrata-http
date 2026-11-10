@@ -57,6 +57,21 @@ Dispatch on `withSpec` exactly as you would on `routes`.  `OpenApi.serve` is the
 the endpoint, so **to leave the spec out, don't call it** and use `routes` directly.  The served
 document describes `routes` only; it does not list the spec endpoint itself.
 
+#### YAML
+
+To also serve the spec as YAML, pass `yamlPath`.  It is served alongside the JSON, from the same
+generated document, with content type `application/yaml`:
+
+```scala
+val withSpec = OpenApi.serve("/openapi.json", Info("My Service", "1.0"),
+                             yamlPath = Some("/openapi.yaml"))(routes)
+```
+
+`OpenApi.wrap` takes the same `yamlPath` argument.  Leave it out (the default) and only the JSON
+endpoint exists.  The YAML path must be a literal path and must differ from the JSON path.  Both
+paths are ordinary runtime strings, so they can come from configuration.  To get the YAML text
+without serving it, use `OpenApi.generateYaml(routes, Info(...))`.
+
 If you want the JSON without serving it (to write it to a file in a build step, say), use
 `OpenApi.generate(routes, Info(...), servers = Seq(Server("https://example.com")))`, which returns a
 rojoma-json `JObject`.
@@ -125,7 +140,7 @@ imperatively, so there is nothing to inspect.
 * **No schema registry.**  `Schema.ref("Widget")` produces a `$ref` to `#/components/schemas/Widget`,
   but the generated document has no `components` section.  Define the schema yourself or use inline
   schemas (`Schema.obj`, `Schema.array`, `Schema.raw`) instead.
-* **Format.**  Output is OpenAPI 3.0.3 JSON only; there is no YAML.
+* **Version.**  Output is OpenAPI 3.0.3.
 * **Routes must be built with the `Route` macros** (or `PathTreeBuilder`).  Hand-built `PathTree`s
   carry no path pattern and are ignored by the generator.
 * **Docs apply to the whole tree they are attached to.**  `.documented(doc)` on a merged `Routes(...)`

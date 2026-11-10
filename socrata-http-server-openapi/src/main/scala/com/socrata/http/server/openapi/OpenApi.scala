@@ -47,32 +47,48 @@ object OpenApi {
       })))
   }
 
-  /** Returns `routes` merged with a route serving its own OpenAPI document at `specPath`
-    * (e.g. `"/openapi.json"`).  The path is a plain runtime string, so it can come from config.
-    * The served document describes `routes` only, not the spec endpoint itself.  To leave the
-    * spec out, simply don't call this.
-    */
-  def serve[U](specPath: String, info: Info, servers: Seq[Server] = Nil)(routes: PathTree[List[Any] => HttpService]): PathTree[List[Any] => HttpService] = {
-    val components = literalComponents(specPath)
+  /** Renders the same document as [[generate]], as YAML. */
+  def generateYaml(routes: PathTree[_], info: Info, servers: Seq[Server] = Nil): String =
+    Yaml.render(generate(routes, info, servers))
+
+  // The (literal path components -> service) pairs for the JSON endpoint and, if requested, the YAML endpoint.
+  private def specEndpoints(specPath: String, yamlPath: Option[String], info: Info, servers: Seq[Server], routes: PathTree[_]): List[(List[String], HttpService)] = {
+    val jsonComponents = literalComponents(specPath)
+    val yamlComponents = yamlPath.map(literalComponents)
+    require(!yamlComponents.contains(jsonComponents), "The YAML spec path must differ from the JSON spec path")
 
     lazy val spec = generate(routes, info, servers)
-    val service: HttpService = { (req: HttpRequest) => OK ~> Json(spec) }
-    routes.merge(PathTree[List[Any] => HttpService, String](components, (_: List[Any]) => service, false))
+    lazy val yaml = Yaml.render(spec)
+    val jsonService: HttpService = { (req: HttpRequest) => OK ~> Json(spec) }
+    val yamlService: HttpService = { (req: HttpRequest) => OK ~> Content("application/yaml; charset=UTF-8", yaml) }
+
+    (jsonComponents -> jsonService) :: yamlComponents.map(_ -> yamlService).toList
   }
 
-  /** Wraps `service` so that requests for `specPath` are answered with the OpenAPI document for
-    * `routes`, and every other request is passed to `service` untouched.  The spec path is checked
-    * before `service` runs, so no route in `service` can shadow it regardless of merge order.
-    * `routes` is only used to generate the document; dispatching is still up to `service`.
+  /** Returns `routes` merged with a route serving its own OpenAPI document as JSON at `specPath`
+    * (e.g. `"/openapi.json"`) and, if `yamlPath` is given, as YAML at `yamlPath`
+    * (e.g. `Some("/openapi.yaml")`).  The paths are plain runtime strings, so they can come from
+    * config.  The served document describes `routes` only, not the spec endpoints themselves.  To
+    * leave the spec out, simply don't call this.
     */
-  def wrap(specPath: String, info: Info, routes: PathTree[_], servers: Seq[Server] = Nil)(service: HttpService): HttpService = {
-    val components = literalComponents(specPath)
-    lazy val spec = generate(routes, info, servers)
-    val specService: HttpService = { (req: HttpRequest) => OK ~> Json(spec) }
+  def serve[U](specPath: String, info: Info, servers: Seq[Server] = Nil, yamlPath: Option[String] = None)(routes: PathTree[List[Any] => HttpService]): PathTree[List[Any] => HttpService] =
+    specEndpoints(specPath, yamlPath, info, servers, routes).foldLeft(routes) { case (tree, (components, service)) =>
+      tree.merge(PathTree[List[Any] => HttpService, String](components, (_: List[Any]) => service, false))
+    }
+
+  /** Wraps `service` so that requests for `specPath` (and `yamlPath`, if given) are answered with the
+    * OpenAPI document for `routes`, and every other request is passed to `service` untouched.  The
+    * spec paths are checked before `service` runs, so no route in `service` can shadow them regardless
+    * of merge order.  `routes` is only used to generate the document; dispatching is still up to `service`.
+    */
+  def wrap(specPath: String, info: Info, routes: PathTree[_], servers: Seq[Server] = Nil, yamlPath: Option[String] = None)(service: HttpService): HttpService = {
+    val endpoints = specEndpoints(specPath, yamlPath, info, servers, routes).toMap
 
     { (req: HttpRequest) =>
-      if(req.requestPath == components) specService(req)
-      else service(req)
+      endpoints.get(req.requestPath) match {
+        case Some(spec) => spec(req)
+        case None => service(req)
+      }
     }
   }
 
